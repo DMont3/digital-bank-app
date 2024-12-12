@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { User } from '../models/user.model'
+import { UserProfile } from '../models/user.model'
 
 export class UserService {
   private supabase
@@ -11,7 +11,7 @@ export class UserService {
     )
   }
 
-  async getProfile(userId: string): Promise<User> {
+  async getProfile(userId: string): Promise<UserProfile> {
     const { data, error } = await this.supabase
       .from('users')
       .select('*')
@@ -19,10 +19,10 @@ export class UserService {
       .single()
 
     if (error) throw error
-    return data as User
+    return data as UserProfile
   }
 
-  async updateProfile(userId: string, userData: Partial<User>): Promise<User> {
+  async updateProfile(userId: string, userData: Partial<UserProfile>): Promise<UserProfile> {
     const { data, error } = await this.supabase
       .from('users')
       .update(userData)
@@ -31,7 +31,7 @@ export class UserService {
       .single()
 
     if (error) throw error
-    return data as User
+    return data as UserProfile
   }
 
   async deleteAccount(userId: string): Promise<void> {

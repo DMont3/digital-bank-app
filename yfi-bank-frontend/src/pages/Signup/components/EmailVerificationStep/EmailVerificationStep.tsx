@@ -1,91 +1,73 @@
+// src/pages/Signup/components/EmailVerificationStep/EmailVerificationStep.tsx
+
 import React from 'react';
-import { TextField, Box, Button, Typography } from '@mui/material';
-import TimerDisplay from '../TimerDisplay/TimerDisplay';
-import { styled } from '@mui/material/styles';
+import { Box, Typography, TextField, Button, CircularProgress, Alert } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
 
 interface EmailVerificationStepProps {
-  formValues: SignupFormData;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  errors: ValidationError[];
-  emailTimer: number;
-  onResendCode: (type: 'email' | 'phone') => void;
+    formValues: SignupFormData;
+    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    errors: ValidationError[];
+    onResendCode: () => Promise<void>;
+    onSubmit: (e: React.FormEvent) => Promise<void>;
+    isSubmitting: boolean;
+    resendTimer: number;
 }
 
-const StyledTextField = styled(TextField)(({ theme }) => ({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: theme.shape.borderRadius * 2,
-    transition: theme.transitions.create(['box-shadow', 'border-color', 'background-color'], {
-      duration: theme.transitions.duration.shorter,
-    }),
-    '&:hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-      '& .MuiOutlinedInput-notchedOutline': {
-        borderColor: theme.palette.primary.main,
-      },
-    },
-    '&.Mui-focused': {
-      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-      boxShadow: `0 0 0 2px ${theme.palette.primary.main}25`,
-      '& .MuiOutlinedInput-notchedOutline': {
-        borderColor: theme.palette.primary.main,
-      },
-    },
-    '& .MuiOutlinedInput-input': {
-      letterSpacing: '0.5em',
-      textAlign: 'center'
-    }
-  },
-}));
-
 const EmailVerificationStep: React.FC<EmailVerificationStepProps> = ({
-  formValues,
-  handleChange,
-  errors,
-  emailTimer,
-  onResendCode
+    formValues,
+    handleChange,
+    errors,
+    onResendCode,
+    onSubmit,
+    isSubmitting,
+    resendTimer
 }) => {
-  return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        Verificação de Email
-      </Typography>
-      <Typography variant="body2" color="textSecondary" paragraph>
-        Digite o código de verificação enviado para {formValues.email}
-      </Typography>
+    const [verificationError, setVerificationError] = React.useState<string | null>(null);
 
-      <StyledTextField
-        fullWidth
-        name="emailCode"
-        label="Código de Verificação"
-        value={formValues.emailCode || ''}
-        onChange={handleChange}
-        error={errors.some(error => error.field === 'emailCode')}
-        helperText={errors.find(error => error.field === 'emailCode')?.message}
-        margin="normal"
-        inputProps={{
-          maxLength: 6,
-          pattern: '[0-9]*',
-          inputMode: 'numeric'
-        }}
-      />
-
-      <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        {emailTimer > 0 ? (
-          <TimerDisplay timer={emailTimer} />
-        ) : (
-          <Button 
-            variant="text" 
-            onClick={() => onResendCode('email')}
-            sx={{ textTransform: 'none' }}
-          >
-            Reenviar código
-          </Button>
-        )}
-      </Box>
-    </Box>
-  );
+    return (
+        <Box component="form"> {/* Remover onSubmit */}
+            {errors.length > 0 && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {errors[0].message}
+                </Alert>
+            )}
+            <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                Enviamos um código de verificação para seu email.
+                Insira o código abaixo para continuar.
+            </Typography>
+            <TextField
+                fullWidth
+                label="Código de Verificação"
+                variant="outlined"
+                margin="normal"
+                name="emailCode"
+                value={formValues.emailCode}
+                onChange={handleChange}
+                error={!!verificationError}
+                helperText={verificationError}
+                required
+                inputProps={{
+                    maxLength: 6,
+                    pattern: '[0-9]*',
+                    inputMode: 'numeric'
+                }}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                <Button
+                    variant="text"
+                    onClick={onResendCode}
+                    disabled={resendTimer > 0 || isSubmitting}
+                    sx={{
+                        textTransform: 'none',
+                        color: 'primary.main'
+                    }}
+                >
+                    {resendTimer > 0 ? `Aguarde ${resendTimer}s` : 'Reenviar código'}
+                </Button>
+            </Box>
+        </Box>
+    );
 };
 
 export default EmailVerificationStep;

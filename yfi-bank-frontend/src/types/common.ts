@@ -10,10 +10,28 @@ declare module '@mui/material/Button' {
 }
 
 // User related types
+export interface Address {
+    cep: string;
+    street: string;
+    number: string;
+    complement?: string;
+    neighborhood: string;
+    city: string;
+    state: string;
+}
+
 export interface User {
     id: string;
     name: string;
     email: string;
+    cpf: string;
+    phone: string;
+    birthDate: string;
+    address: Address;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 // Route related types
@@ -168,6 +186,7 @@ export interface SignupFormData {
     state: string;
     password: string;
     confirmPassword: string;
+    token: string;
 }
 
 export interface ValidationError {
@@ -191,6 +210,18 @@ export interface StepValidation {
 // Timer related types
 export interface TimerDisplayProps {
     timer: number;
+    seconds?: number;
+    isExpiration?: boolean;
+}
+
+// Email Verification Step Props
+export interface EmailVerificationStepProps {
+    errors: ValidationError[];
+    emailTimer: number;
+    onResendCode: () => Promise<void>;
+    onSubmit: (e: React.FormEvent) => void;
+    formValues?: SignupFormData;
+    handleChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 // About page types

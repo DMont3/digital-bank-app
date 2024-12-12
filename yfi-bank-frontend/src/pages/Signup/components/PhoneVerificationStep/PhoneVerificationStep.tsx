@@ -49,9 +49,6 @@ const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
   return (
     <Box>
       {/* TODO: Implementar verificação real via SMS */}
-      <Typography variant="h6" gutterBottom>
-        Verificação de Telefone
-      </Typography>
       <Typography variant="body2" color="textSecondary" paragraph>
         Digite qualquer código de 6 dígitos para prosseguir
       </Typography>

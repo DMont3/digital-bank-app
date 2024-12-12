@@ -12,12 +12,15 @@ import {
     ListItemText,
     useMediaQuery,
     useTheme,
+    Avatar,
 } from '@mui/material';
 import { FaBuilding } from 'react-icons/fa';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import CustomButton from '../../common/CustomButton/CustomButton';
 import { HeaderProps, NavItem } from '../../../types/common';
+import { useAuth } from '../../../hooks/useAuth';
+import { api } from '../../../services/api';
 
 const Header: React.FC<HeaderProps> = ({ navItems = [
     { label: 'Sobre', to: '/sobre' },
@@ -28,6 +31,20 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    const handleLogout = async () => {
+        try {
+            await api.post('/auth/logout');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Error logging out:', error);
+        }
+    };
 
     const handleDrawerToggle = () => {
         setDrawerOpen(!drawerOpen);
@@ -97,81 +114,117 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
         </React.Fragment>
     );
 
-    const desktopView = (
-        <React.Fragment>
-            <Box sx={{ display: 'flex', alignItems: 'center', marginLeft: 4 }}>
-                {navItems.map((item) => (
-                    <Button
-                        key={item.to}
-                        color="inherit"
-                        component={RouterLink}
-                        to={item.to}
-                        sx={{ marginLeft: 2 }}
+    const renderAuthButtons = () => {
+        if (user) {
+            return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography sx={{ color: '#f1c40f' }}>
+                        Olá, {user.name || user.email}
+                    </Typography>
+                    <CustomButton
+                        onClick={handleLogout}
+                        variant="outlined"
+                        color="primary"
                     >
-                        {item.label}
-                    </Button>
-                ))}
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CustomButton variant="contained" component={RouterLink} to="/signup" sx={{ marginRight: 2 }}>
-                    Abra sua conta
-                </CustomButton>
-                <CustomButton variant="outlined" component={RouterLink} to="/login">
+                        Sair
+                    </CustomButton>
+                </Box>
+            );
+        }
+
+        return (
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <CustomButton
+                    component={RouterLink}
+                    to="/login"
+                    variant="outlined"
+                    color="primary"
+                >
                     Entrar
                 </CustomButton>
+                <CustomButton
+                    component={RouterLink}
+                    to="/signup"
+                    variant="contained"
+                    color="primary"
+                >
+                    Abrir Conta
+                </CustomButton>
             </Box>
-        </React.Fragment>
-    );
+        );
+    };
 
     return (
-        <React.Fragment>
-            <AppBar 
-                position="fixed" 
-                sx={{
-                    background: 'rgba(30, 30, 30, 0.8)',
-                    backdropFilter: 'blur(10px)',
-                    borderBottom: '1px solid rgba(241, 196, 15, 0.1)',
-                }}
-            >
-                <Toolbar
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'nowrap',
-                        paddingX: { xs: 1, sm: 2, md: 4 },
-                    }}
-                >
-                    <Box
+        <AppBar 
+            position="fixed" 
+            sx={{
+                background: 'rgba(30, 30, 30, 0.8)',
+                backdropFilter: 'blur(10px)',
+                borderBottom: '1px solid rgba(184, 134, 11, 0.1)',
+                boxShadow: '0 2px 10px rgba(184, 134, 11, 0.04)'
+            }}
+        >
+            <Toolbar sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                {/* Logo Section - Left */}
+                <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    flex: '1 1 0'
+                }}>
+                    <FaBuilding size={24} color="#ffffff" />
+                    <Typography
+                        variant="h6"
                         component={RouterLink}
                         to="/"
                         sx={{
-                            display: 'flex',
-                            alignItems: 'center',
+                            marginLeft: 1,
+                            color: '#ffffff',
                             textDecoration: 'none',
-                            color: 'inherit',
-                            flexGrow: isMobile ? 1 : 0,
+                            '&:hover': {
+                                color: '#f1c40f',
+                            },
                         }}
                     >
-                        <FaBuilding size={24} color="#ffffff" />
-                        <Typography
-                            variant="h6"
-                            component="div"
-                            sx={{
-                                marginLeft: 1,
-                                fontWeight: 'bold',
-                                color: '#ffffff',
-                            }}
-                        >
-                            YFI BANK
-                        </Typography>
-                    </Box>
+                        YFI BANK
+                    </Typography>
+                </Box>
 
-                    {isMobile ? mobileView : desktopView}
-                </Toolbar>
-            </AppBar>
-            <Toolbar />
-        </React.Fragment>
+                {isMobile ? (
+                    mobileView
+                ) : (
+                    <>
+                        {/* Links de navegação centralizados */}
+                        <Box sx={{ 
+                            position: 'absolute',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            display: 'flex',
+                            gap: 3
+                        }}>
+                            {navItems.map((item) => (
+                                <Button
+                                    key={item.label}
+                                    component={RouterLink}
+                                    to={item.to}
+                                    sx={{
+                                        color: '#ffffff',
+                                        '&:hover': {
+                                            color: '#f1c40f',
+                                        },
+                                    }}
+                                >
+                                    {item.label}
+                                </Button>
+                            ))}
+                        </Box>
+                        {/* Botões de autenticação */}
+                        <Box sx={{ marginLeft: 'auto' }}>
+                            {renderAuthButtons()}
+                        </Box>
+                    </>
+                )}
+            </Toolbar>
+        </AppBar>
     );
 };
 

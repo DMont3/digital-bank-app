@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material';
 import theme from './theme';
 import Header from './components/layout/Header/Header';
@@ -15,41 +15,51 @@ import DashboardPage from './pages/Dashboard';
 import ProfilePage from './pages/Profile';
 import { PrivateRoute } from './components/common/PrivateRoute/PrivateRoute';
 
+const AppContent: React.FC = () => {
+    const location = useLocation();
+    const hideFooterPaths = ['/login', '/signup'];
+    const shouldShowFooter = !hideFooterPaths.includes(location.pathname);
+
+    return (
+        <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            minHeight: '100vh'
+        }}>
+            <Header />
+            <main style={{ flex: 1 }}>
+                <Routes>
+                    {/* Rotas públicas */}
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/signup" element={<SignupPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/sobre" element={<SobrePage />} />
+                    <Route path="/servicos" element={<ServicosPage />} />
+                    <Route path="/contato" element={<ContatoPage />} />
+
+                    {/* Rotas protegidas */}
+                    <Route path="/dashboard" element={
+                        <PrivateRoute>
+                            <DashboardPage />
+                        </PrivateRoute>
+                    } />
+                    <Route path="/profile" element={
+                        <PrivateRoute>
+                            <ProfilePage />
+                        </PrivateRoute>
+                    } />
+                </Routes>
+            </main>
+            {shouldShowFooter && <Footer />}
+        </div>
+    );
+};
+
 const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <Router>
-                <div style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    minHeight: '100vh'
-                }}>
-                    <Header />
-                    <main style={{ flex: 1 }}>
-                        <Routes>
-                            {/* Rotas públicas */}
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/signup" element={<SignupPage />} />
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/sobre" element={<SobrePage />} />
-                            <Route path="/servicos" element={<ServicosPage />} />
-                            <Route path="/contato" element={<ContatoPage />} />
-
-                            {/* Rotas protegidas */}
-                            <Route path="/dashboard" element={
-                                <PrivateRoute>
-                                    <DashboardPage />
-                                </PrivateRoute>
-                            } />
-                            <Route path="/profile" element={
-                                <PrivateRoute>
-                                    <ProfilePage />
-                                </PrivateRoute>
-                            } />
-                        </Routes>
-                    </main>
-                    <Footer />
-                </div>
+                <AppContent />
             </Router>
         </ThemeProvider>
     );

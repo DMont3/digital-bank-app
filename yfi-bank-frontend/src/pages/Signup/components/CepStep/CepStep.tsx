@@ -1,5 +1,5 @@
-import React from 'react';
-import { TextField, Box, Alert } from '@mui/material';
+import React, { useState } from 'react';
+import { TextField, Box, Alert, CircularProgress } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
 import { validateCEP } from '../../../../utils/validation';
 import { formatCEP } from '../../../../utils/formatters';
@@ -11,15 +11,19 @@ interface CepStepProps {
   handleCepBlur: (cep: string) => Promise<void>;
 }
 
-const CepStep: React.FC<CepStepProps> = ({ formValues, errors, handleChange, handleCepBlur }) => {
+const CepStep: React.FC<CepStepProps> = ({ 
+  formValues, 
+  errors, 
+  handleChange, 
+  handleCepBlur 
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
   const cepError = errors.find(error => error.field === 'cep')?.message;
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+    const value = e.target.value.replace(/\D/g, '');
     const formatted = formatCEP(value);
-    const isValid = validateCEP(formatted);
     
-    // Atualiza o valor do input
     const event = {
       ...e,
       target: {
@@ -32,31 +36,40 @@ const CepStep: React.FC<CepStepProps> = ({ formValues, errors, handleChange, han
     handleChange(event);
   };
 
-  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    if (e.target.value && validateCEP(e.target.value)) {
-      handleCepBlur(e.target.value);
+  const onBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+    const cep = e.target.value.replace(/\D/g, '');
+    if (cep && cep.length === 8 && validateCEP(cep)) {
+      setIsLoading(true);
+      try {
+        await handleCepBlur(cep);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   return (
     <Box>
-      {errors && errors.length > 0 && <Alert severity="error" sx={{ mb: 2 }}>{errors[0].message}</Alert>}
+      {errors.length > 0 && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errors[0].message}
+        </Alert>
+      )}
+      
       <TextField
         fullWidth
         label="CEP"
         name="cep"
-        value={formValues.cep}
+        value={formValues.cep || ''}
         onChange={handleCepChange}
         onBlur={onBlur}
         error={!!cepError}
-        helperText={cepError || "Digite o CEP no formato: 00000-000"}
-        required
-        placeholder="00000-000"
-        type="text"
-        inputProps={{
-          maxLength: 9,
-          autoComplete: 'postal-code'
+        helperText={cepError}
+        disabled={isLoading}
+        InputProps={{
+          endAdornment: isLoading && <CircularProgress size={20} />,
         }}
+        placeholder="00000-000"
       />
     </Box>
   );

@@ -27,8 +27,18 @@ const LoginForm: React.FC<LoginFormProps> = ({
     const emailError = errors.find(error => error.field === 'email')?.message;
     const passwordError = errors.find(error => error.field === 'password')?.message;
 
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        console.log('Form submit prevented');
+        await onSubmit(e);
+    };
+
     return (
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <form 
+            onSubmit={handleSubmit}
+            style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}
+            noValidate
+        >
             {error && (
                 <Alert 
                     severity="error"

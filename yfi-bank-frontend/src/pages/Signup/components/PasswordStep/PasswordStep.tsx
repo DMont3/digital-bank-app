@@ -104,9 +104,6 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ formValues, handleChange, e
     <Box>
       {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
       {errors && errors.length > 0 && <Alert severity="error" sx={{ mb: 2 }}>{errors[0].message}</Alert>}
-      <Typography variant="h6" gutterBottom>
-        Defina sua senha
-      </Typography>
 
       <StyledTextField
         fullWidth

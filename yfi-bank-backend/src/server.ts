@@ -4,7 +4,6 @@ import cors from '@fastify/cors'
 import { authRoutes } from './routes/auth.routes'
 import { userRoutes } from './routes/user.routes'
 import { swaggerPlugin } from './plugins/swagger'
-import jwtPlugin from './plugins/jwt'
 
 async function bootstrap() {
   const fastify = Fastify({
@@ -17,7 +16,6 @@ async function bootstrap() {
     credentials: true
   })
   
-  await fastify.register(jwtPlugin)
   await fastify.register(swaggerPlugin)
 
   // Registrar rotas

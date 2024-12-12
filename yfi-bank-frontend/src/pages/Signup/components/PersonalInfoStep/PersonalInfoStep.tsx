@@ -73,9 +73,6 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleC
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        Informações Pessoais
-      </Typography>
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <TextField

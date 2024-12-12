@@ -1,7 +1,6 @@
 import React from 'react';
-import { TextField, Box, Alert } from '@mui/material';
+import { TextField, Box, Alert, Typography } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
-import { validateEmail } from '../../../../utils/validation';
 
 interface EmailStepProps {
   formValues: SignupFormData;
@@ -10,19 +9,23 @@ interface EmailStepProps {
   success?: string;
 }
 
-const EmailStep: React.FC<EmailStepProps> = ({ formValues, handleChange, errors, success }) => {
+const EmailStep: React.FC<EmailStepProps> = ({ 
+  formValues, 
+  handleChange, 
+  errors, 
+  success 
+}) => {
   const emailError = errors.find(error => error.field === 'email')?.message;
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.trim().toLowerCase();
-    const isValid = validateEmail(value);
     
     const syntheticEvent = {
       ...e,
       target: {
         ...e.target,
-        value,
-        name: 'email'
+        name: 'email',
+        value
       }
     };
     
@@ -31,9 +34,9 @@ const EmailStep: React.FC<EmailStepProps> = ({ formValues, handleChange, errors,
 
   return (
     <Box>
-      {errors.length > 0 && (
+      {emailError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {errors[0].message}
+          {emailError}
         </Alert>
       )}
       {success && (
@@ -41,20 +44,22 @@ const EmailStep: React.FC<EmailStepProps> = ({ formValues, handleChange, errors,
           {success}
         </Alert>
       )}
+      
+      <Typography variant="body2" color="textSecondary" gutterBottom>
+        Enviaremos um código de verificação para confirmar seu email.
+      </Typography>
+
       <TextField
         fullWidth
         label="Email"
         name="email"
         type="email"
-        value={formValues.email}
+        value={formValues.email || ''}
         onChange={handleEmailChange}
         error={!!emailError}
-        helperText={emailError || "Digite um email válido"}
-        required
+        helperText={emailError}
         placeholder="exemplo@email.com"
-        inputProps={{
-          autoComplete: 'email'
-        }}
+        sx={{ mt: 2 }}
       />
     </Box>
   );

@@ -6,18 +6,20 @@ interface Config {
   port: number
   supabaseUrl: string
   supabaseKey: string
-  jwtSecret: string
+  supabaseServiceRoleKey: string
+  frontendUrl: string
 }
 
 export const config: Config = {
   port: Number(process.env.PORT) || 3000,
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_KEY || '',
-  jwtSecret: process.env.JWT_SECRET || ''
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  frontendUrl: process.env.FRONTEND_URL || ''
 }
 
 // Validação das variáveis obrigatórias
-const requiredEnvs: (keyof Config)[] = ['supabaseUrl', 'supabaseKey', 'jwtSecret']
+const requiredEnvs: (keyof Config)[] = ['supabaseUrl', 'supabaseKey', 'supabaseServiceRoleKey', 'frontendUrl']
 for (const env of requiredEnvs) {
   if (!config[env]) {
     throw new Error(`Missing required environment variable: ${env}`)

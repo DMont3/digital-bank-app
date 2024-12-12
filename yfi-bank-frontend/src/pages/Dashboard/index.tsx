@@ -1,6 +1,8 @@
 import React from 'react';
 import { Box, Container, Typography, Paper, Grid } from '@mui/material';
 import { useAuth } from '../../hooks/useAuth';
+import { User } from '../../types/common';
+import { formatDate } from '../../utils/formatters';
 
 const DashboardPage: React.FC = () => {
     const { user } = useAuth();
@@ -35,20 +37,22 @@ const DashboardPage: React.FC = () => {
                                 <Typography color="white">Email: {user.email}</Typography>
                                 <Typography color="white">CPF: {user.cpf}</Typography>
                                 <Typography color="white">Telefone: {user.phone}</Typography>
-                                <Typography color="white">Data de Nascimento: {new Date(user.birthDate).toLocaleDateString()}</Typography>
+                                <Typography color="white">
+                                    Data de Nascimento: {formatDate(user.birthDate)}
+                                </Typography>
                             </Box>
                         </Grid>
 
                         <Grid item xs={12}>
                             <Typography variant="h6" color="primary" sx={{ mt: 2 }}>Endereço</Typography>
                             <Box sx={{ mt: 2 }}>
-                                <Typography color="white">CEP: {user.cep}</Typography>
+                                <Typography color="white">CEP: {user.address.cep}</Typography>
                                 <Typography color="white">
-                                    {user.street}, {user.number}
-                                    {user.complement && ` - ${user.complement}`}
+                                    {user.address.street}, {user.address.number}
+                                    {user.address.complement && ` - ${user.address.complement}`}
                                 </Typography>
-                                <Typography color="white">{user.neighborhood}</Typography>
-                                <Typography color="white">{user.city} - {user.state}</Typography>
+                                <Typography color="white">{user.address.neighborhood}</Typography>
+                                <Typography color="white">{user.address.city} - {user.address.state}</Typography>
                             </Box>
                         </Grid>
                     </Grid>

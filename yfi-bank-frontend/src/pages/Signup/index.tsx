@@ -1,3 +1,5 @@
+// src/pages/Signup/index.tsx
+
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -8,6 +10,8 @@ import {
     Link,
     Typography,
     Fade,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
@@ -17,28 +21,30 @@ import { api } from '../../services/api';
 import CustomButton from '../../components/common/CustomButton/CustomButton';
 import { SignupFormData, ValidationError, AddressData, StepValidation } from '../../types/common';
 import { validateEmail, validatePhone, validateCPF, validateName, validatePassword, validateCEP } from '../../utils/validation';
+import { formatPhone, formatCPF, formatCEP } from '../../utils/formatters'; // Importa os formatters
+import { useSignupStore } from '../../stores/signupStore';
 
 // Import components
 import StepProgress from './components/StepProgress/StepProgress';
-import EmailStep from './components/EmailStep/EmailStep';
-import EmailVerificationStep from './components/EmailVerificationStep/EmailVerificationStep';
 import PhoneStep from './components/PhoneStep/PhoneStep';
 import PhoneVerificationStep from './components/PhoneVerificationStep/PhoneVerificationStep';
+import PasswordStep from './components/PasswordStep/PasswordStep';
 import PersonalInfoStep from './components/PersonalInfoStep/PersonalInfoStep';
 import CepStep from './components/CepStep/CepStep';
 import AddressStep from './components/AddressStep/AddressStep';
-import PasswordStep from './components/PasswordStep/PasswordStep';
+import EmailStep from './components/EmailStep/EmailStep';
+import EmailVerificationStep from './components/EmailVerificationStep/EmailVerificationStep';
 import SuccessStep from './components/SuccessStep/SuccessStep';
 
 const steps = [
-    'Email',
-    'Verificação de Email',
     'Telefone',
     'Verificação de Telefone',
+    'Senha',
     'Dados Pessoais',
     'CEP',
     'Endereço',
-    'Senha',
+    'Email',
+    'Verificação de Email',
     'Sucesso'
 ] as const;
 
@@ -46,30 +52,70 @@ type StepType = typeof steps[number];
 
 const SignupPage: React.FC = () => {
     const navigate = useNavigate();
-    const [activeStep, setActiveStep] = useState<number>(0);
+    const { formData, setFormData, activeStep, setActiveStep, resetStore } = useSignupStore();
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState<string>('');
-    const [emailTimer, setEmailTimer] = useState<number>(0);
     const [phoneTimer, setPhoneTimer] = useState<number>(0);
+    const [emailTimer, setEmailTimer] = useState<number>(0);
+    const [expirationTimer, setExpirationTimer] = useState<number>(600); // 10 minutos em segundos
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-    const [formValues, setFormValues] = useState<SignupFormData>({
-        email: '',
-        emailCode: '',
-        phone: '',
-        phoneCode: '',
-        name: '',
-        cpf: '',
-        birthDate: '',
-        cep: '',
-        street: '',
-        number: '',
-        complement: '',
-        neighborhood: '',
-        city: '',
-        state: '',
-        password: '',
-        confirmPassword: ''
-    });
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [resendTimer, setResendTimer] = useState<number>(0); // Timer para reenvio de código de email
+
+    useEffect(() => {
+        let phoneInterval: NodeJS.Timeout;
+        let emailInterval: NodeJS.Timeout;
+        let expirationInterval: NodeJS.Timeout;
+        let resendInterval: NodeJS.Timeout;
+
+        if (phoneTimer > 0) {
+            phoneInterval = setInterval(() => {
+                setPhoneTimer(prev => Math.max(0, prev - 1));
+            }, 1000);
+        }
+
+        if (emailTimer > 0) {
+            emailInterval = setInterval(() => {
+                setEmailTimer(prev => Math.max(0, prev - 1));
+            }, 1000);
+        }
+
+        if (resendTimer > 0) {
+            resendInterval = setInterval(() => {
+                setResendTimer(prev => Math.max(0, prev - 1));
+            }, 1000);
+        }
+
+        if (expirationTimer > 0 && (activeStep === 7 || activeStep === 1)) {
+            expirationInterval = setInterval(() => {
+                setExpirationTimer(prev => {
+                    const newValue = Math.max(0, prev - 1);
+                    if (newValue === 0) {
+                        // Código expirou
+                        setValidationErrors(prev => [...prev, { 
+                            field: activeStep === 7 ? 'emailCode' : 'phoneCode',
+                            message: 'Código expirado. Por favor, solicite um novo código.'
+                        }]);
+                    }
+                    return newValue;
+                });
+            }, 1000);
+        }
+
+        return () => {
+            if (phoneInterval) clearInterval(phoneInterval);
+            if (emailInterval) clearInterval(emailInterval);
+            if (resendInterval) clearInterval(resendInterval);
+            if (expirationInterval) clearInterval(expirationInterval);
+        };
+    }, [phoneTimer, emailTimer, expirationTimer, activeStep, resendTimer]);
+
+    useEffect(() => {
+        return () => {
+            resetStore();
+        };
+    }, [resetStore]);
 
     const startTimer = (type: 'email' | 'phone') => {
         if (type === 'email') {
@@ -77,6 +123,10 @@ const SignupPage: React.FC = () => {
         } else {
             setPhoneTimer(60);
         }
+    };
+
+    const startResendTimer = () => {
+        setResendTimer(60); // 60 segundos
     };
 
     const clearMessages = () => {
@@ -87,164 +137,218 @@ const SignupPage: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         const { name, value } = e.target;
-        setFormValues(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        let formattedValue = value;
+
+        switch (name) {
+            case 'phone':
+                formattedValue = formatPhone(value);
+                break;
+            case 'cpf':
+                formattedValue = formatCPF(value);
+                break;
+            case 'cep':
+                formattedValue = formatCEP(value);
+                break;
+            case 'birthDate':
+                // **Atenção:** Verifique o formato esperado pelo backend para a data.
+                // Se o backend espera 'yyyy-mm-dd', evite formatar para 'dd/mm/yyyy'.
+                // Neste caso, não aplicamos formatDate.
+                // formattedValue = formatDate(value);
+                break;
+            default:
+                break;
+        }
+
+        setFormData({ ...formData, [name]: formattedValue });
         clearMessages();
     };
 
     const sendEmailCode = async () => {
         try {
-            await api.post('/auth/verify-email', { email: formValues.email });
-            setEmailTimer(60);
-            setSuccess('Novo código enviado com sucesso!');
-        } catch (err) {
-            setError('Erro ao enviar código. Tente novamente.');
+            setIsSubmitting(true);
+            setError('');
+            setSuccess('');
+
+            const response = await api.post('/auth/verify-email', { email: formData.email });
+
+            if (response.status === 200) {
+                setSuccess('Código de verificação enviado para seu email.');
+                startTimer('email');
+                startResendTimer();
+                setActiveStep(prev => prev + 1); // Avança para a próxima etapa
+            }
+        } catch (error: any) {
+            let errorMessage = error.response?.data?.error || 'Erro ao enviar código de verificação.';
+            
+            // Trata o erro de rate limit
+            if (error.response?.data?.code === 'over_email_send_rate_limit') {
+                errorMessage = 'Aguarde alguns minutos antes de tentar enviar outro código.';
+            }
+            
+            setError(errorMessage);
+            throw error; 
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const sendPhoneCode = async () => {
         try {
-            setPhoneTimer(60);
-            setSuccess('Código enviado para seu telefone');
-            setActiveStep(prev => prev + 1);
-        } catch (err) {
+            setIsSubmitting(true);
+            setError('');
+            setSuccess('');
+
+            // Aqui você pode implementar a lógica para enviar o código por telefone
+            // Por enquanto, vamos simular o envio e avançar para a próxima etapa
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simula um delay de 1 segundo
+
+            setSuccess('Código enviado para seu telefone.');
+            startTimer('phone');
+            setActiveStep(prev => prev + 1); // Avança para a próxima etapa
+        } catch (error: any) {
             setError('Erro ao enviar código. Tente novamente.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const verifyPhoneCode = async () => {
         try {
-            if (formValues.phoneCode.replace(/\D/g, '').length === 6) {
-                setActiveStep(prev => prev + 1);
-            } else {
-                setError('Código inválido. Por favor, verifique e tente novamente.');
+            setIsSubmitting(true);
+            setError('');
+            setSuccess('');
+
+            if (!formData.phoneCode || formData.phoneCode.replace(/\D/g, '').length !== 6) {
+                throw new Error('Código de verificação inválido.');
             }
-        } catch (err) {
-            setError('Código inválido. Por favor, tente novamente.');
+
+            // Aqui você deveria chamar a API para verificar o código
+            // Por enquanto, vamos simular a verificação e avançar para a próxima etapa
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simula um delay de 1 segundo
+
+            setSuccess('Telefone verificado com sucesso.');
+            setActiveStep(prev => prev + 1); // Avança para a próxima etapa
+        } catch (error: any) {
+            setError(error.message || 'Código de verificação inválido.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    const verifyEmailCode = async () => {
+    const verifyEmailCode = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setError('');
+        setSuccess('');
+        setValidationErrors([]);
+
         try {
-            await api.post('/auth/verify-email-code', {
-                email: formValues.email,
-                code: formValues.emailCode
+            console.log(`Verificando código de email para: ${formData.email}`);
+
+            const response = await api.post('/auth/verify-code', {
+                email: formData.email,
+                token: formData.emailCode, // Código de verificação
+                name: formData.name,
+                cpf: formData.cpf,
+                phone: formData.phone,
+                birthDate: formData.birthDate,
+                address: {
+                    cep: formData.cep,
+                    street: formData.street,
+                    number: formData.number,
+                    complement: '', // **Correção 1:** Sempre define como vazio
+                    neighborhood: formData.neighborhood,
+                    city: formData.city,
+                    state: formData.state
+                },
+                password: formData.password
             });
-            setSuccess('Email verificado com sucesso!');
-            setActiveStep(prev => prev + 1);
+
+            if (response.status === 201) {
+                const { token } = response.data; // Certifique-se de que o backend retorna o token
+                // Armazene o token conforme sua lógica (exemplo com localStorage)
+                localStorage.setItem('authToken', token);
+                setSuccess('Cadastro realizado com sucesso!');
+                setActiveStep(8); // **Correção 2:** Direciona para a etapa de sucesso
+                // resetStore(); // ❌ Remover esta linha para evitar reinicialização do activeStep
+            } else {
+                setError('Erro inesperado durante o cadastro.');
+            }
         } catch (error: any) {
-            setError('Código inválido. Por favor, verifique e tente novamente.');
+            console.error('Erro ao verificar código de email:', error);
+            setError(error.response?.data?.message || 'Erro ao verificar código de email.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
     const validateStep = (step: number): boolean => {
-        const newErrors: ValidationError[] = [];
+        let newErrors: ValidationError[] = [];
 
         switch (step) {
-            case 0: // Email
-                if (!formValues.email) {
-                    newErrors.push({ field: 'email', message: 'O email é obrigatório' });
-                } else if (!validateEmail(formValues.email)) {
-                    newErrors.push({ field: 'email', message: 'Email inválido' });
+            case 0: // Telefone
+                if (!formData.phone || !validatePhone(formData.phone)) {
+                    newErrors.push({ field: 'phone', message: 'Telefone inválido.' });
                 }
                 break;
-
-            case 1: // Email Verification
-                if (!formValues.emailCode || formValues.emailCode.replace(/\D/g, '').length !== 6) {
-                    newErrors.push({ field: 'emailCode', message: 'Código de verificação inválido' });
+            case 1: // Verificação de Telefone
+                if (!formData.phoneCode || formData.phoneCode.replace(/\D/g, '').length !== 6) {
+                    newErrors.push({ field: 'phoneCode', message: 'Código de verificação inválido.' });
                 }
                 break;
-
-            case 2: // Phone
-                if (!formValues.phone) {
-                    newErrors.push({ field: 'phone', message: 'O telefone é obrigatório' });
-                } else if (!validatePhone(formValues.phone)) {
-                    newErrors.push({ field: 'phone', message: 'Telefone inválido' });
+            case 2: // Senha
+                const passwordValidation = validatePassword(formData.password);
+                if (!passwordValidation.isValid) {
+                    newErrors.push(...passwordValidation.errors);
+                }
+                if (formData.password !== formData.confirmPassword) {
+                    newErrors.push({ field: 'confirmPassword', message: 'As senhas não coincidem.' });
                 }
                 break;
-
-            case 3: // Phone Verification
-                if (!formValues.phoneCode || formValues.phoneCode.replace(/\D/g, '').length !== 6) {
-                    newErrors.push({ field: 'phoneCode', message: 'Código de verificação inválido' });
+            case 3: // Dados Pessoais
+                if (!formData.name || !validateName(formData.name)) {
+                    newErrors.push({ field: 'name', message: 'Nome inválido.' });
+                }
+                if (!formData.cpf || !validateCPF(formData.cpf)) {
+                    newErrors.push({ field: 'cpf', message: 'CPF inválido.' });
+                }
+                if (!formData.birthDate) {
+                    newErrors.push({ field: 'birthDate', message: 'Data de nascimento inválida.' });
                 }
                 break;
-
-            case 4: // Personal Info
-                if (!formValues.name) {
-                    newErrors.push({ field: 'name', message: 'O nome é obrigatório' });
-                } else if (!validateName(formValues.name)) {
-                    newErrors.push({ field: 'name', message: 'Nome inválido. Digite nome e sobrenome.' });
-                }
-
-                if (!formValues.cpf) {
-                    newErrors.push({ field: 'cpf', message: 'O CPF é obrigatório' });
-                } else if (!validateCPF(formValues.cpf)) {
-                    newErrors.push({ field: 'cpf', message: 'CPF inválido' });
-                }
-
-                if (!formValues.birthDate) {
-                    newErrors.push({ field: 'birthDate', message: 'A data de nascimento é obrigatória' });
-                } else {
-                    const birthDate = new Date(formValues.birthDate);
-                    const today = new Date();
-                    let age = today.getFullYear() - birthDate.getFullYear();
-                    const monthDiff = today.getMonth() - birthDate.getMonth();
-                    
-                    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-                        age--;
-                    }
-
-                    if (age < 18) {
-                        newErrors.push({ field: 'birthDate', message: 'Você deve ter pelo menos 18 anos' });
-                    } else if (age > 120) {
-                        newErrors.push({ field: 'birthDate', message: 'Data de nascimento inválida' });
-                    }
+            case 4: // CEP
+                if (!formData.cep || !validateCEP(formData.cep)) {
+                    newErrors.push({ field: 'cep', message: 'CEP inválido.' });
                 }
                 break;
-
-            case 5: // CEP
-                if (!formValues.cep) {
-                    newErrors.push({ field: 'cep', message: 'O CEP é obrigatório' });
-                } else if (!validateCEP(formValues.cep)) {
-                    newErrors.push({ field: 'cep', message: 'CEP inválido' });
+            case 5: // Endereço
+                if (!formData.street) {
+                    newErrors.push({ field: 'street', message: 'Rua inválida.' });
+                }
+                if (!formData.number) {
+                    newErrors.push({ field: 'number', message: 'Número inválido.' });
+                }
+                if (!formData.neighborhood) {
+                    newErrors.push({ field: 'neighborhood', message: 'Bairro inválido.' });
+                }
+                if (!formData.city) {
+                    newErrors.push({ field: 'city', message: 'Cidade inválida.' });
+                }
+                if (!formData.state) {
+                    newErrors.push({ field: 'state', message: 'Estado inválido.' });
                 }
                 break;
-
-            case 6: // Address
-                if (!formValues.street) {
-                    newErrors.push({ field: 'street', message: 'A rua é obrigatória' });
-                }
-                if (!formValues.number) {
-                    newErrors.push({ field: 'number', message: 'O número é obrigatório' });
-                }
-                if (!formValues.neighborhood) {
-                    newErrors.push({ field: 'neighborhood', message: 'O bairro é obrigatório' });
-                }
-                if (!formValues.city) {
-                    newErrors.push({ field: 'city', message: 'A cidade é obrigatória' });
-                }
-                if (!formValues.state) {
-                    newErrors.push({ field: 'state', message: 'O estado é obrigatório' });
+            case 6: // Email
+                if (!formData.email || !validateEmail(formData.email)) {
+                    newErrors.push({ field: 'email', message: 'Email inválido.' });
                 }
                 break;
-
-            case 7: // Password
-                if (!formValues.password) {
-                    newErrors.push({ field: 'password', message: 'A senha é obrigatória' });
-                } else {
-                    const passwordValidation = validatePassword(formValues.password);
-                    if (!passwordValidation.isValid) {
-                        newErrors.push(...passwordValidation.errors);
-                    }
+            case 7: // Verificação de Email
+                if (!formData.emailCode || formData.emailCode.replace(/\D/g, '').length !== 6) {
+                    newErrors.push({ field: 'emailCode', message: 'Código de verificação inválido.' });
                 }
-
-                if (!formValues.confirmPassword) {
-                    newErrors.push({ field: 'confirmPassword', message: 'A confirmação de senha é obrigatória' });
-                } else if (formValues.password !== formValues.confirmPassword) {
-                    newErrors.push({ field: 'confirmPassword', message: 'As senhas não coincidem' });
-                }
+                break;
+            default:
                 break;
         }
 
@@ -253,238 +357,209 @@ const SignupPage: React.FC = () => {
     };
 
     const handleNext = async () => {
-        // Validate current step
+        // Valida a etapa atual
         if (!validateStep(activeStep)) {
             return;
         }
 
-        // Clear messages before proceeding
-        clearMessages();
-
-        try {
-            // Step-specific actions
-            switch (activeStep) {
-                case 0: // Email
-                    await handleEmailStep();
-                    return;
-                case 1: // Email Verification
-                    await verifyEmailCode();
-                    return;
-                case 2: // Phone
-                    await sendPhoneCode();
-                    return;
-                case 3: // Phone Verification
-                    await verifyPhoneCode();
-                    return;
-                case 5: // CEP
-                    await handleCepBlur(formValues.cep);
-                    setActiveStep(prev => prev + 1);
-                    return;
-                case 7: // Password (Final Step)
-                    await handleSubmit();
-                    return;
-            }
-
-            // Se chegou aqui, avança para o próximo passo
-            setActiveStep(prev => prev + 1);
-        } catch (error) {
-            setError('Ocorreu um erro. Por favor, tente novamente.');
+        // Ações específicas para cada etapa
+        switch (activeStep) {
+            case 0: // Telefone
+                await sendPhoneCode();
+                break;
+            case 1: // Verificação de Telefone
+                await verifyPhoneCode();
+                break;
+            case 6: // Email
+                await sendEmailCode();
+                break;
+            case 7: // Verificação de Email
+                // Não faz nada aqui, pois a verificação é tratada pelo botão "Próximo"
+                break;
+            default:
+                setActiveStep(prev => prev + 1);
         }
     };
 
-    const handleSubmit = async () => {
-        try {
-            const response = await api.post('/auth/register', {
-                email: formValues.email,
-                password: formValues.password,
-                name: formValues.name,
-                cpf: formValues.cpf,
-                phone: formValues.phone,
-                birthDate: formValues.birthDate,
-                address: {
-                    cep: formValues.cep,
-                    street: formValues.street,
-                    number: formValues.number,
-                    complement: formValues.complement || '',
-                    neighborhood: formValues.neighborhood,
-                    city: formValues.city,
-                    state: formValues.state
-                }
-            });
-
-            // Atualiza o status de verificação do email e telefone
-            await api.post('/auth/update-verification', {
-                userId: response.data.user.id,
-                type: 'email',
-                verified: true
-            });
-
-            await api.post('/auth/update-verification', {
-                userId: response.data.user.id,
-                type: 'phone',
-                verified: true
-            });
-
-            setActiveStep(activeStep + 1);
-        } catch (error: any) {
-            console.error('Erro durante o registro:', error.response?.data);
-            setError(error.response?.data?.error || 'Erro ao criar conta. Por favor, tente novamente.');
-        }
-    };
-
-    const handleBack = (): void => {
-        clearMessages();
-        setActiveStep((prevActiveStep) => prevActiveStep - 1);
-    };
-
-    const handleCepBlur = async (cep: string): Promise<void> => {
-        try {
-            cep = cep.replace(/\D/g, '');
-            if (cep.length !== 8) {
-                setError('CEP inválido');
-                return;
-            }
-
-            const response = await axios.get<AddressData>(`https://viacep.com.br/ws/${cep}/json/`);
-            const data = response.data;
-
-            if (data.erro) {
-                setError('CEP não encontrado');
-                return;
-            }
-
-            setFormValues(prev => ({
-                ...prev,
-                street: data.logradouro,
-                neighborhood: data.bairro,
-                city: data.localidade,
-                state: data.uf
-            }));
-
-        } catch (err) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('Erro ao buscar CEP');
-            }
-        }
-    };
-
-    const handleEmailStep = async () => {
-        try {
-            await api.post('/auth/verify-email', {
-                email: formValues.email
-            });
-            setActiveStep(activeStep + 1);
-            setEmailTimer(60);
-        } catch (error: any) {
-            setValidationErrors([{ field: 'email', message: error.response?.data?.error || 'Erro ao enviar código de verificação' }]);
-        }
-    };
-
-    const handleEmailVerificationSuccess = () => {
-        setActiveStep(activeStep + 1);
+    const handleBack = () => {
+        setActiveStep(prev => prev - 1);
         setValidationErrors([]);
     };
 
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (emailTimer > 0) {
-            timer = setInterval(() => {
-                setEmailTimer(prev => prev - 1);
-            }, 1000);
-        }
-        return () => clearInterval(timer);
-    }, [emailTimer]);
+    const handleCepBlur = async (cep: string) => {
+        if (!cep || cep.length !== 8) return;
 
-    useEffect(() => {
-        let timer: NodeJS.Timeout;
-        if (phoneTimer > 0) {
-            timer = setInterval(() => {
-                setPhoneTimer(prev => prev - 1);
-            }, 1000);
-        }
-        return () => clearInterval(timer);
-    }, [phoneTimer]);
+        try {
+            setIsLoading(true);
+            const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
+            
+            if (response.data.erro) {
+                setValidationErrors(prev => [...prev, { field: 'cep', message: 'CEP não encontrado.' }]);
+                return;
+            }
 
-    const renderStep = () => {
-        switch (activeStep) {
-            case 0:
-                return (
-                    <EmailStep
-                        formValues={formValues}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 1:
-                return (
-                    <EmailVerificationStep
-                        formValues={formValues}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        emailTimer={emailTimer}
-                        onResendCode={() => startTimer('email')}
-                    />
-                );
-            case 2:
+            const addressData = {
+                street: response.data.logradouro,
+                neighborhood: response.data.bairro,
+                city: response.data.localidade,
+                state: response.data.uf,
+                complement: '' // **Correção 1:** Define sempre como vazio
+            };
+
+            setFormData({ ...formData, ...addressData });
+            setActiveStep(prev => prev + 1);
+        } catch (error) {
+            setValidationErrors(prev => [...prev, { field: 'cep', message: 'Erro ao buscar CEP.' }]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResendCode = async (type: 'email' | 'phone') => {
+        try {
+            setError('');
+            setSuccess('');
+            setIsSubmitting(true);
+            if (type === 'email') {
+                await handleResendEmailCode();
+            } else {
+                await sendPhoneCode();
+            }
+            setSuccess('Código reenviado com sucesso.');
+        } catch (error: any) {
+            setValidationErrors([{ 
+                field: type === 'email' ? 'email' : 'phone', 
+                message: error.response?.data?.message || 'Erro ao reenviar código.' 
+            }]);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResendEmailCode = async () => {
+        if (resendTimer > 0) return; // Impede reenvio se o timer ainda não expirou
+
+        try {
+            setIsSubmitting(true);
+            setError('');
+            setSuccess('');
+
+            const response = await api.post('/auth/verify-email', { email: formData.email });
+
+            if (response.status === 200) {
+                setSuccess('Código de verificação reenviado para seu email.');
+                startResendTimer(); // Inicia o timer
+            }
+        } catch (error: any) {
+            let errorMessage = error.response?.data?.error || 'Erro ao reenviar código de verificação.';
+            
+            // Trata o erro de rate limit
+            if (error.response?.data?.code === 'over_email_send_rate_limit') {
+                errorMessage = 'Aguarde alguns minutos antes de tentar reenviar outro código.';
+            }
+            
+            setError(errorMessage);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const getStepContent = (step: number) => {
+        switch (step) {
+            case 0: // Telefone
                 return (
                     <PhoneStep
-                        formValues={formValues}
+                        formValues={formData}
                         handleChange={handleChange}
                         errors={validationErrors}
                     />
                 );
-            case 3:
+            case 1: // Verificação de Telefone
                 return (
                     <PhoneVerificationStep
-                        formValues={formValues}
+                        formValues={formData}
                         handleChange={handleChange}
                         errors={validationErrors}
                         phoneTimer={phoneTimer}
-                        onResendCode={() => startTimer('phone')}
+                        onResendCode={() => handleResendCode('phone')}
                     />
                 );
-            case 4:
-                return (
-                    <PersonalInfoStep
-                        formValues={formValues}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        success={success}
-                    />
-                );
-            case 5:
-                return (
-                    <CepStep
-                        formValues={formValues}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        handleCepBlur={() => handleCepBlur(formValues.cep)}
-                    />
-                );
-            case 6:
-                return (
-                    <AddressStep
-                        formValues={formValues}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 7:
+            case 2: // Senha
                 return (
                     <PasswordStep
-                        formValues={formValues}
+                        formValues={formData}
+                        handleChange={handleChange}
+                        errors={validationErrors}
+                    />
+                );
+            case 3: // Dados Pessoais
+                return (
+                    <PersonalInfoStep
+                        formValues={formData}
+                        handleChange={handleChange}
+                        errors={validationErrors}
+                    />
+                );
+            case 4: // CEP
+                return (
+                    <CepStep
+                        formValues={formData}
+                        handleChange={handleChange}
+                        errors={validationErrors}
+                        handleCepBlur={handleCepBlur}
+                    />
+                );
+            case 5: // Endereço
+                return (
+                    <AddressStep
+                        formValues={formData}
+                        handleChange={handleChange}
+                        errors={validationErrors}
+                    />
+                );
+            case 6: // Email
+                return (
+                    <EmailStep
+                        formValues={formData}
                         handleChange={handleChange}
                         errors={validationErrors}
                         success={success}
                     />
                 );
-            case 8:
+                case 7: // Verificação de Email
+                return (
+                    <EmailVerificationStep
+                        formValues={formData}
+                        handleChange={handleChange}
+                        errors={validationErrors}
+                        onResendCode={() => handleResendCode('email')}
+                        isSubmitting={isSubmitting}
+                        resendTimer={resendTimer}
+                        onSubmit={verifyEmailCode} // Add this line
+                    />
+                );
+            case 8: // Sucesso
                 return <SuccessStep />;
             default:
-                return null;
+                return 'Passo desconhecido';
         }
+    };
+
+    const getButtonContent = () => {
+        if (activeStep === 8) {
+            return 'Ir para Login';
+        }
+
+        if (activeStep === 7 && isSubmitting) {
+            return (
+                <>
+                    <CircularProgress size={20} color="inherit" />
+                    <span style={{ marginLeft: 8 }}>Verificando...</span>
+                </>
+            );
+        }
+
+        return 'Próximo';
     };
 
     return (
@@ -528,7 +603,7 @@ const SignupPage: React.FC = () => {
                             />
 
                             <Box sx={{ my: 4 }}>
-                                {renderStep()}
+                                {getStepContent(activeStep)}
                             </Box>
 
                             {activeStep < 8 && (
@@ -561,7 +636,8 @@ const SignupPage: React.FC = () => {
                                     <Button
                                         variant="contained"
                                         endIcon={<ArrowForwardIcon />}
-                                        onClick={handleNext}
+                                        onClick={activeStep === 7 ? verifyEmailCode : handleNext}
+                                        disabled={isSubmitting || isLoading}
                                         sx={{
                                             borderRadius: 2,
                                             bgcolor: 'primary.main',
@@ -572,7 +648,7 @@ const SignupPage: React.FC = () => {
                                             }
                                         }}
                                     >
-                                        {activeStep === 7 ? 'Finalizar' : 'Próximo'}
+                                        {getButtonContent()}
                                     </Button>
                                 </Box>
                             )}

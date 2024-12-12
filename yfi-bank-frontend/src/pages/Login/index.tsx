@@ -10,7 +10,13 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { LoginFormData, ValidationError } from '../../types/common';
 import LoginForm from './components/LoginForm/LoginForm';
-import { api } from '../../services/api'; 
+import { createClient } from '@supabase/supabase-js';
+import { sanitizeString } from '../../utils/sanitizers';
+
+const supabase = createClient(
+    import.meta.env.VITE_SUPABASE_URL,
+    import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
@@ -22,11 +28,15 @@ const LoginPage: React.FC = () => {
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
 
+    const handleForgotPassword = () => {
+        navigate('/forgot-password');
+    };
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         const { name, value } = e.target;
         setFormValues(prev => ({
             ...prev,
-            [name]: value
+            [name]: sanitizeString(value)
         }));
     };
 
@@ -36,22 +46,24 @@ const LoginPage: React.FC = () => {
     };
 
     const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-        e.preventDefault();
         const errors: ValidationError[] = [];
 
-        if (!formValues.email) {
+        const sanitizedEmail = sanitizeString(formValues.email);
+        const sanitizedPassword = formValues.password; // Não sanitizamos senha
+
+        if (!sanitizedEmail) {
             errors.push({
                 field: 'email',
                 message: 'Por favor, informe seu email.'
             });
-        } else if (!validateEmail(formValues.email)) {
+        } else if (!validateEmail(sanitizedEmail)) {
             errors.push({
                 field: 'email',
                 message: 'Por favor, informe um email válido.'
             });
         }
 
-        if (!formValues.password) {
+        if (!sanitizedPassword) {
             errors.push({
                 field: 'password',
                 message: 'Por favor, informe sua senha.'
@@ -68,28 +80,26 @@ const LoginPage: React.FC = () => {
         setValidationErrors([]);
 
         try {
-            const response = await api.post('/auth/login', formValues);
-            if (response.data.token) {
-                localStorage.setItem('token', response.data.token);
-                navigate('/dashboard');
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: sanitizedEmail,
+                password: sanitizedPassword
+            });
+
+            if (authError) throw authError;
+
+            if (data.session) {
+                navigate('/dashboard', { replace: true });
+                return;
             }
-            
-            
-            // Simulação de delay para feedback visual
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // TODO: Remover após implementar API
-            navigate('/dashboard');
-        } catch (error) {
-            setError('Email ou senha incorretos. Por favor, verifique suas credenciais.');
+
+            setError('Erro ao processar login. Por favor, tente novamente.');
+        } catch (error: any) {
+            console.error('Erro no login:', error);
+            const errorMessage = error.message || 'Erro ao fazer login. Por favor, tente novamente.';
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const handleForgotPassword = () => {
-        // TODO: Implementar rota para recuperação de senha
-        navigate('/recuperar-senha');
     };
 
     return (

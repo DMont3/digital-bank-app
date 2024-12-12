@@ -1,4 +1,4 @@
-import { Session } from '@supabase/supabase-js';
+import { Session, User as SupabaseUser } from '@supabase/supabase-js'
 
 export interface Address {
   cep: string
@@ -10,18 +10,18 @@ export interface Address {
   state: string
 }
 
-export interface User {
+export interface UserProfile {
   id: string
   email: string
-  name: string
-  cpf: string
-  phone: string
-  birthDate: string
-  address: Address
-  emailVerified?: boolean
-  phoneVerified?: boolean
-  createdAt?: string
-  updatedAt?: string
+  name?: string
+  cpf?: string
+  phone?: string
+  birth_date?: string
+  address?: Address
+  email_verified?: boolean
+  phone_verified?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 export interface CreateUserDTO {
@@ -40,7 +40,6 @@ export interface LoginDTO {
 }
 
 export interface AuthResponse {
-  user: User
+  user: UserProfile | null
   session: Session | null
-  token?: string
 }
