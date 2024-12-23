@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import 'react/jsx-runtime';
 import {
     Box,
     Container,
@@ -10,13 +11,8 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { LoginFormData, ValidationError } from '../../types/common';
 import LoginForm from './components/LoginForm/LoginForm';
-import { createClient } from '@supabase/supabase-js';
 import { sanitizeString } from '../../utils/sanitizers';
-
-const supabase = createClient(
-    import.meta.env.VITE_SUPABASE_URL,
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-);
+import { useAuth } from '../../hooks/useAuth';
 
 const LoginPage: React.FC = () => {
     const navigate = useNavigate();
@@ -34,7 +30,7 @@ const LoginPage: React.FC = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
         const { name, value } = e.target;
-        setFormValues(prev => ({
+        setFormValues((prev: LoginFormData) => ({
             ...prev,
             [name]: sanitizeString(value)
         }));
@@ -80,19 +76,10 @@ const LoginPage: React.FC = () => {
         setValidationErrors([]);
 
         try {
-            const { data, error: authError } = await supabase.auth.signInWithPassword({
-                email: sanitizedEmail,
-                password: sanitizedPassword
-            });
-
-            if (authError) throw authError;
-
-            if (data.session) {
-                navigate('/dashboard', { replace: true });
-                return;
-            }
-
-            setError('Erro ao processar login. Por favor, tente novamente.');
+            const { login } = useAuth();
+            await login(sanitizedEmail, sanitizedPassword);
+            navigate('/dashboard', { replace: true });
+            return;
         } catch (error: any) {
             console.error('Erro no login:', error);
             const errorMessage = error.message || 'Erro ao fazer login. Por favor, tente novamente.';

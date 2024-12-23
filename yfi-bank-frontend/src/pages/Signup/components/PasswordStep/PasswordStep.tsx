@@ -77,18 +77,18 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ formValues, handleChange, e
   const [passwordMatch, setPasswordMatch] = useState(false);
 
   useEffect(() => {
-    if (formValues.password) {
+    if (formValues?.password) {
       updateValidations(formValues.password);
     }
-  }, [formValues.password]);
+  }, [formValues?.password]);
 
   useEffect(() => {
-    if (formValues.password && formValues.confirmPassword) {
+    if (formValues?.password && formValues?.confirmPassword) {
       setPasswordMatch(formValues.password === formValues.confirmPassword);
     } else {
       setPasswordMatch(false);
     }
-  }, [formValues.password, formValues.confirmPassword]);
+  }, [formValues?.password, formValues?.confirmPassword]);
 
   const updateValidations = (password: string) => {
     setValidations(prev => {

@@ -34,6 +34,16 @@ export interface User {
     updatedAt?: string;
 }
 
+export interface CreateUserDTO {
+    email: string;
+    name: string;
+    cpf: string;
+    phone: string;
+    birth_date: string;
+    address: Address;
+    password: string;
+}
+
 // Route related types
 export interface Route {
     path: string;

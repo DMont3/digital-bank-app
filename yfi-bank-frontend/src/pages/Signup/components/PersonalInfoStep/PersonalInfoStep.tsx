@@ -8,10 +8,9 @@ interface PersonalInfoStepProps {
   formValues: SignupFormData;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   errors: ValidationError[];
-  success?: string;
 }
 
-const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleChange, errors, success }) => {
+const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleChange, errors }) => {
   const nameError = errors.find(error => error.field === 'name')?.message;
   const cpfError = errors.find(error => error.field === 'cpf')?.message;
   const birthDateError = errors.find(error => error.field === 'birthDate')?.message;
@@ -73,8 +72,8 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleC
 
   return (
     <Box>
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
+      <Grid container spacing={3}>
+        <Grid item xs={12} sx={{ marginBottom: 2 }}>
           <TextField
             fullWidth
             label="Nome Completo"
@@ -91,7 +90,7 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleC
             }}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={6} sx={{ marginBottom: 2 }}>
           <TextField
             fullWidth
             label="CPF"
@@ -110,14 +109,14 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleC
               inputMode: 'numeric'
             }}
             FormHelperTextProps={{
-              sx: { 
+              sx: {
                 position: 'absolute',
                 bottom: '-20px'
               }
             }}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid item xs={12} sm={6} sx={{ marginBottom: 2 }}>
           <TextField
             fullWidth
             label="Data de Nascimento"
@@ -135,7 +134,7 @@ const PersonalInfoStep: React.FC<PersonalInfoStepProps> = ({ formValues, handleC
               autoComplete: 'bday'
             }}
             FormHelperTextProps={{
-              sx: { 
+              sx: {
                 position: 'absolute',
                 bottom: '-20px'
               }

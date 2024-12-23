@@ -12,7 +12,6 @@ import SobrePage from './pages/Sobre';
 import ServicosPage from './pages/Servicos';
 import ContatoPage from './pages/Contato';
 import DashboardPage from './pages/Dashboard';
-import ProfilePage from './pages/Profile';
 import { PrivateRoute } from './components/common/PrivateRoute/PrivateRoute';
 
 const AppContent: React.FC = () => {
@@ -37,17 +36,8 @@ const AppContent: React.FC = () => {
                     <Route path="/servicos" element={<ServicosPage />} />
                     <Route path="/contato" element={<ContatoPage />} />
 
-                    {/* Rotas protegidas */}
-                    <Route path="/dashboard" element={
-                        <PrivateRoute>
-                            <DashboardPage />
-                        </PrivateRoute>
-                    } />
-                    <Route path="/profile" element={
-                        <PrivateRoute>
-                            <ProfilePage />
-                        </PrivateRoute>
-                    } />
+                    {/* Rotas públicas */}
+                    <Route path="/dashboard" element={<DashboardPage />} />
                 </Routes>
             </main>
             {shouldShowFooter && <Footer />}

@@ -20,7 +20,6 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import CustomButton from '../../common/CustomButton/CustomButton';
 import { HeaderProps, NavItem } from '../../../types/common';
 import { useAuth } from '../../../hooks/useAuth';
-import { api } from '../../../services/api';
 
 const Header: React.FC<HeaderProps> = ({ navItems = [
     { label: 'Sobre', to: '/sobre' },
@@ -33,13 +32,11 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
     const navigate = useNavigate();
     const { user } = useAuth();
 
+    const { logout } = useAuth();
+
     const handleLogout = async () => {
         try {
-            await api.post('/auth/logout');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            document.cookie = 'sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-            document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            await logout();
             window.location.href = '/';
         } catch (error) {
             console.error('Error logging out:', error);

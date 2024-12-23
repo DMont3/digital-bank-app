@@ -1,27 +1,29 @@
-import dotenv from 'dotenv'
+import dotenv from 'dotenv';
 
-dotenv.config()
+dotenv.config();
 
 interface Config {
-  port: number
-  supabaseUrl: string
-  supabaseKey: string
-  supabaseServiceRoleKey: string
-  frontendUrl: string
+  port: number;
+  twilioAccountSid: string;
+  twilioAuthToken: string;
+  twilioVerifyServiceSid: string;
+  supabaseUrl: string;
+  supabaseAnonKey: string;
 }
 
 export const config: Config = {
   port: Number(process.env.PORT) || 3000,
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+  twilioVerifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID || '',
   supabaseUrl: process.env.SUPABASE_URL || '',
-  supabaseKey: process.env.SUPABASE_KEY || '',
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  frontendUrl: process.env.FRONTEND_URL || ''
-}
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+};
 
 // Validação das variáveis obrigatórias
-const requiredEnvs: (keyof Config)[] = ['supabaseUrl', 'supabaseKey', 'supabaseServiceRoleKey', 'frontendUrl']
+const requiredEnvs: (keyof Config)[] = ['twilioAccountSid', 'twilioAuthToken', 'twilioVerifyServiceSid', 'supabaseUrl', 'supabaseAnonKey'];
 for (const env of requiredEnvs) {
   if (!config[env]) {
-    throw new Error(`Missing required environment variable: ${env}`)
+    throw new Error(`Missing required environment variable: ${env}`);
   }
 }

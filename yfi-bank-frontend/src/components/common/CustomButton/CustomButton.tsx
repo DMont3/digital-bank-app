@@ -1,6 +1,11 @@
-import { Button, Theme } from '@mui/material';
+import { Button, Theme, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { CustomButtonProps } from '../../../types/common';
+import { CustomButtonProps as DefaultCustomButtonProps } from '../../../types/common';
+
+interface CustomButtonProps extends DefaultCustomButtonProps {
+    loading?: boolean;
+    loadingIndicator?: React.ReactNode;
+}
 import React from 'react';
 
 const StyledButton = styled(Button)<CustomButtonProps>(({ theme, variant = 'contained' }) => ({
@@ -39,8 +44,12 @@ const StyledButton = styled(Button)<CustomButtonProps>(({ theme, variant = 'cont
     })
 }));
 
-const CustomButton: React.FC<CustomButtonProps> = (props) => {
-    return <StyledButton {...props} />;
+const CustomButton: React.FC<CustomButtonProps> = ({ loading, loadingIndicator, children, ...props }) => {
+    return (
+        <StyledButton {...props} disabled={props.disabled || loading}>
+            {loading && loadingIndicator ? loadingIndicator : children}
+        </StyledButton>
+    );
 };
 
 export default CustomButton;

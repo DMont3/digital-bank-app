@@ -1,5 +1,6 @@
 // src/pages/Home/components/CryptoSection/CryptoSection.tsx
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Box, Typography, Container, Card, CardMedia, CircularProgress } from '@mui/material';
 import Slider from 'react-slick';
 import 'slick-carousel/slick/slick.css';
@@ -31,32 +32,24 @@ const coinIds: CoinInfo[] = [
     { id: 'polkadot', name: 'Polkadot', symbol: 'DOT', icon: polkadotIcon }
 ];
 
-const fetchWithRetry = async (url: string, retries = 3): Promise<Response> => {
-    for (let i = 0; i < retries; i++) {
-        try {
-            const response = await fetch(url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (response.ok) {
-                return response;
+const fetchWithRetry = async (url: string, retries = 3) => {
+    try {
+        const response = await axios.get(url, {
+            headers: {
+                'Accept': 'application/json'
             }
-            
-            if (response.status === 429) {
+        });
+        return response.data;
+    } catch (error) {
+        if (axios.isAxiosError(error) && error.response) {
+            if (error.response.status === 429 && retries > 0) {
                 await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-                continue;
+                return fetchWithRetry(url, retries - 1);
             }
-            
-            throw new Error(`HTTP error! status: ${response.status}`);
-        } catch (error) {
-            if (i === retries - 1) throw error;
-            await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+            throw new Error(`HTTP error! status: ${error.response.status}`);
         }
+        throw error;
     }
-    throw new Error('Max retries reached');
 };
 
 const CryptoSection: React.FC = () => {
@@ -68,15 +61,9 @@ const CryptoSection: React.FC = () => {
         const fetchCryptoData = async () => {
             try {
                 const ids = coinIds.map(coin => coin.id).join(',');
-                const response = await fetchWithRetry(
+                const data = await fetchWithRetry(
                     `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`
                 );
-                
-                if (!response.ok) {
-                    throw new Error('Falha ao carregar dados');
-                }
-                
-                const data = await response.json();
                 
                 const results = coinIds.map(coin => {
                     const coinData = data[coin.id];

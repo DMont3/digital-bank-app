@@ -1,25 +1,27 @@
 import React from 'react';
 import { TextField, Box, Alert, Grid } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
+import CustomButton from '../../../../components/common/CustomButton/CustomButton';
+import { CircularProgress } from '@mui/material';
 
 interface AddressStepProps {
     formValues: SignupFormData;
     errors: ValidationError[];
-    success?: string;
     handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    isSubmitting: boolean;
 }
 
-const AddressStep: React.FC<AddressStepProps> = ({ formValues, errors, success, handleChange }) => {
-    const streetError = errors.find(error => error.field === 'street')?.message;
-    const numberError = errors.find(error => error.field === 'number')?.message;
-    const neighborhoodError = errors.find(error => error.field === 'neighborhood')?.message;
-    const cityError = errors.find(error => error.field === 'city')?.message;
-    const stateError = errors.find(error => error.field === 'state')?.message;
+const AddressStep: React.FC<AddressStepProps> = ({ formValues, errors, handleChange, isSubmitting }) => {
+    console.log('AddressStep props:', formValues);
+    const streetError = errors?.find((error) => error.field === 'street')?.message;
+    const numberError = errors?.find((error) => error.field === 'number')?.message;
+    const neighborhoodError = errors?.find((error) => error.field === 'neighborhood')?.message;
+    const cityError = errors?.find((error) => error.field === 'city')?.message;
+    const stateError = errors?.find((error) => error.field === 'state')?.message;
 
     return (
         <Box>
             {errors.length > 0 && <Alert severity="error" sx={{ mb: 2 }}>{errors[0].message}</Alert>}
-            {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
             <Grid container spacing={2}>
                 <Grid item xs={12}>
                     <TextField

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TextField, Box, Alert, CircularProgress } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
 import { validateCEP } from '../../../../utils/validation';
@@ -8,22 +8,23 @@ interface CepStepProps {
   formValues: SignupFormData;
   errors: ValidationError[];
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleCepBlur: (cep: string) => Promise<void>;
+  onBlur: (cep: string) => void;
+  isLoading: boolean;
 }
-
-const CepStep: React.FC<CepStepProps> = ({ 
-  formValues, 
-  errors, 
-  handleChange, 
-  handleCepBlur 
+const CepStep: React.FC<CepStepProps> = ({
+  formValues,
+  errors,
+  handleChange,
+  onBlur,
+  isLoading,
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const cepError = errors.find(error => error.field === 'cep')?.message;
+  console.log('CepStep formValues:', formValues);
+  const cepError = Array.isArray(errors) ? errors?.find(error => error.field === 'cep')?.message : undefined;
 
   const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '');
     const formatted = formatCEP(value);
-    
+
     const event = {
       ...e,
       target: {
@@ -32,20 +33,8 @@ const CepStep: React.FC<CepStepProps> = ({
         value: formatted
       }
     };
-    
-    handleChange(event);
-  };
 
-  const onBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
-    const cep = e.target.value.replace(/\D/g, '');
-    if (cep && cep.length === 8 && validateCEP(cep)) {
-      setIsLoading(true);
-      try {
-        await handleCepBlur(cep);
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    handleChange(event);
   };
 
   return (
@@ -55,14 +44,19 @@ const CepStep: React.FC<CepStepProps> = ({
           {errors[0].message}
         </Alert>
       )}
-      
+
       <TextField
         fullWidth
         label="CEP"
         name="cep"
         value={formValues.cep || ''}
         onChange={handleCepChange}
-        onBlur={onBlur}
+        onBlur={(e) => {
+          const cep = e.target.value.replace(/\D/g, '');
+          if (cep && cep.length === 8 && validateCEP(cep)) {
+            onBlur(cep);
+          }
+        }}
         error={!!cepError}
         helperText={cepError}
         disabled={isLoading}

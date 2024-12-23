@@ -1,5 +1,3 @@
-// src/pages/Signup/index.tsx
-
 import React, { useState, useEffect } from 'react';
 import {
     Box,
@@ -16,35 +14,32 @@ import {
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import axios from 'axios';
-import { api } from '../../services/api';
 import CustomButton from '../../components/common/CustomButton/CustomButton';
-import { SignupFormData, ValidationError, AddressData, StepValidation } from '../../types/common';
+import { SignupFormData, ValidationError, AddressData, StepValidation, CreateUserDTO } from '../../types/common';
 import { validateEmail, validatePhone, validateCPF, validateName, validatePassword, validateCEP } from '../../utils/validation';
 import { formatPhone, formatCPF, formatCEP } from '../../utils/formatters'; // Importa os formatters
 import { useSignupStore } from '../../stores/signupStore';
+import { useAuth } from '../../hooks/useAuth';
 
 // Import components
 import StepProgress from './components/StepProgress/StepProgress';
 import PhoneStep from './components/PhoneStep/PhoneStep';
-import PhoneVerificationStep from './components/PhoneVerificationStep/PhoneVerificationStep';
 import PasswordStep from './components/PasswordStep/PasswordStep';
 import PersonalInfoStep from './components/PersonalInfoStep/PersonalInfoStep';
 import CepStep from './components/CepStep/CepStep';
-import AddressStep from './components/AddressStep/AddressStep';
-import EmailStep from './components/EmailStep/EmailStep';
-import EmailVerificationStep from './components/EmailVerificationStep/EmailVerificationStep';
+import AddressStep from './components/AddressStep/AddressStep.tsx';
 import SuccessStep from './components/SuccessStep/SuccessStep';
+import PhoneVerificationStep from './components/PhoneVerificationStep/PhoneVerificationStep';
+import EmailStep from './components/EmailStep/EmailStep';
 
 const steps = [
     'Telefone',
     'Verificação de Telefone',
+    'Email',
     'Senha',
     'Dados Pessoais',
     'CEP',
     'Endereço',
-    'Email',
-    'Verificação de Email',
     'Sucesso'
 ] as const;
 
@@ -56,18 +51,15 @@ const SignupPage: React.FC = () => {
     const [error, setError] = useState<string>('');
     const [success, setSuccess] = useState<string>('');
     const [phoneTimer, setPhoneTimer] = useState<number>(0);
-    const [emailTimer, setEmailTimer] = useState<number>(0);
     const [expirationTimer, setExpirationTimer] = useState<number>(600); // 10 minutos em segundos
     const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+    const [cepLoading, setCepLoading] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const [resendTimer, setResendTimer] = useState<number>(0); // Timer para reenvio de código de email
+    const { authUser, signup, resetPassword } = useAuth();
 
     useEffect(() => {
         let phoneInterval: NodeJS.Timeout;
-        let emailInterval: NodeJS.Timeout;
         let expirationInterval: NodeJS.Timeout;
-        let resendInterval: NodeJS.Timeout;
 
         if (phoneTimer > 0) {
             phoneInterval = setInterval(() => {
@@ -75,26 +67,14 @@ const SignupPage: React.FC = () => {
             }, 1000);
         }
 
-        if (emailTimer > 0) {
-            emailInterval = setInterval(() => {
-                setEmailTimer(prev => Math.max(0, prev - 1));
-            }, 1000);
-        }
-
-        if (resendTimer > 0) {
-            resendInterval = setInterval(() => {
-                setResendTimer(prev => Math.max(0, prev - 1));
-            }, 1000);
-        }
-
-        if (expirationTimer > 0 && (activeStep === 7 || activeStep === 1)) {
+        if (expirationTimer > 0 && activeStep === 1) {
             expirationInterval = setInterval(() => {
                 setExpirationTimer(prev => {
                     const newValue = Math.max(0, prev - 1);
                     if (newValue === 0) {
                         // Código expirou
-                        setValidationErrors(prev => [...prev, { 
-                            field: activeStep === 7 ? 'emailCode' : 'phoneCode',
+                        setValidationErrors(prev => [...prev, {
+                            field: 'phoneCode',
                             message: 'Código expirado. Por favor, solicite um novo código.'
                         }]);
                     }
@@ -105,11 +85,9 @@ const SignupPage: React.FC = () => {
 
         return () => {
             if (phoneInterval) clearInterval(phoneInterval);
-            if (emailInterval) clearInterval(emailInterval);
-            if (resendInterval) clearInterval(resendInterval);
             if (expirationInterval) clearInterval(expirationInterval);
         };
-    }, [phoneTimer, emailTimer, expirationTimer, activeStep, resendTimer]);
+    }, [phoneTimer, expirationTimer, activeStep]);
 
     useEffect(() => {
         return () => {
@@ -117,16 +95,8 @@ const SignupPage: React.FC = () => {
         };
     }, [resetStore]);
 
-    const startTimer = (type: 'email' | 'phone') => {
-        if (type === 'email') {
-            setEmailTimer(60);
-        } else {
-            setPhoneTimer(60);
-        }
-    };
-
-    const startResendTimer = () => {
-        setResendTimer(60); // 60 segundos
+    const startTimer = (type: 'phone') => {
+        setPhoneTimer(60);
     };
 
     const clearMessages = () => {
@@ -163,50 +133,39 @@ const SignupPage: React.FC = () => {
         clearMessages();
     };
 
-    const sendEmailCode = async () => {
-        try {
-            setIsSubmitting(true);
-            setError('');
-            setSuccess('');
-
-            const response = await api.post('/auth/verify-email', { email: formData.email });
-
-            if (response.status === 200) {
-                setSuccess('Código de verificação enviado para seu email.');
-                startTimer('email');
-                startResendTimer();
-                setActiveStep(prev => prev + 1); // Avança para a próxima etapa
-            }
-        } catch (error: any) {
-            let errorMessage = error.response?.data?.error || 'Erro ao enviar código de verificação.';
-            
-            // Trata o erro de rate limit
-            if (error.response?.data?.code === 'over_email_send_rate_limit') {
-                errorMessage = 'Aguarde alguns minutos antes de tentar enviar outro código.';
-            }
-            
-            setError(errorMessage);
-            throw error; 
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
     const sendPhoneCode = async () => {
         try {
             setIsSubmitting(true);
             setError('');
             setSuccess('');
-
-            // Aqui você pode implementar a lógica para enviar o código por telefone
-            // Por enquanto, vamos simular o envio e avançar para a próxima etapa
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simula um delay de 1 segundo
-
-            setSuccess('Código enviado para seu telefone.');
-            startTimer('phone');
-            setActiveStep(prev => prev + 1); // Avança para a próxima etapa
+    
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/verify/start`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ phone: formData.phone }),
+            });
+    
+            if (response.status === 400) {
+                const errorData = await response.json();
+                setError(errorData.error || 'Número de telefone já registrado.');
+            } else if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'pending') {
+                    setSuccess('Código enviado para seu telefone.');
+                    startTimer('phone');
+                    setActiveStep(prev => prev + 1);
+                } else {
+                    throw new Error('Falha ao enviar código de verificação.');
+                }
+            } else if (response.status === 500) {
+                throw new Error('Erro interno do servidor ao enviar o código. Tente novamente mais tarde.');
+            } else {
+                throw new Error('Erro ao enviar código. Tente novamente.');
+            }
         } catch (error: any) {
-            setError('Erro ao enviar código. Tente novamente.');
+            setError(error.message || 'Erro ao enviar código. Tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -217,66 +176,33 @@ const SignupPage: React.FC = () => {
             setIsSubmitting(true);
             setError('');
             setSuccess('');
-
+    
             if (!formData.phoneCode || formData.phoneCode.replace(/\D/g, '').length !== 6) {
                 throw new Error('Código de verificação inválido.');
             }
-
-            // Aqui você deveria chamar a API para verificar o código
-            // Por enquanto, vamos simular a verificação e avançar para a próxima etapa
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Simula um delay de 1 segundo
-
-            setSuccess('Telefone verificado com sucesso.');
-            setActiveStep(prev => prev + 1); // Avança para a próxima etapa
-        } catch (error: any) {
-            setError(error.message || 'Código de verificação inválido.');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const verifyEmailCode = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        setError('');
-        setSuccess('');
-        setValidationErrors([]);
-
-        try {
-            console.log(`Verificando código de email para: ${formData.email}`);
-
-            const response = await api.post('/auth/verify-code', {
-                email: formData.email,
-                token: formData.emailCode, // Código de verificação
-                name: formData.name,
-                cpf: formData.cpf,
-                phone: formData.phone,
-                birthDate: formData.birthDate,
-                address: {
-                    cep: formData.cep,
-                    street: formData.street,
-                    number: formData.number,
-                    complement: '', // **Correção 1:** Sempre define como vazio
-                    neighborhood: formData.neighborhood,
-                    city: formData.city,
-                    state: formData.state
+    
+            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/verify/check`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
-                password: formData.password
+                body: JSON.stringify({ phone: formData.phone, code: formData.phoneCode }),
             });
-
-            if (response.status === 201) {
-                const { token } = response.data; // Certifique-se de que o backend retorna o token
-                // Armazene o token conforme sua lógica (exemplo com localStorage)
-                localStorage.setItem('authToken', token);
-                setSuccess('Cadastro realizado com sucesso!');
-                setActiveStep(8); // **Correção 2:** Direciona para a etapa de sucesso
-                // resetStore(); // ❌ Remover esta linha para evitar reinicialização do activeStep
+    
+            if (response.ok) {
+                const data = await response.json();
+                if (data.status === 'approved') {
+                    setSuccess('Telefone verificado com sucesso.');
+                    setActiveStep(prev => prev + 1);
+                } else {
+                    setError('Código de verificação inválido.');
+                }
             } else {
-                setError('Erro inesperado durante o cadastro.');
+                const errorData = await response.json();
+                setError(errorData.message || 'Erro ao verificar código. Tente novamente.');
             }
         } catch (error: any) {
-            console.error('Erro ao verificar código de email:', error);
-            setError(error.response?.data?.message || 'Erro ao verificar código de email.');
+            setError(error.message || 'Erro ao verificar código. Tente novamente.');
         } finally {
             setIsSubmitting(false);
         }
@@ -296,7 +222,12 @@ const SignupPage: React.FC = () => {
                     newErrors.push({ field: 'phoneCode', message: 'Código de verificação inválido.' });
                 }
                 break;
-            case 2: // Senha
+            case 2: // Email
+                if (!formData.email || !validateEmail(formData.email)) {
+                    newErrors.push({ field: 'email', message: 'Email inválido.' });
+                }
+                break;
+            case 3: // Senha
                 const passwordValidation = validatePassword(formData.password);
                 if (!passwordValidation.isValid) {
                     newErrors.push(...passwordValidation.errors);
@@ -305,7 +236,7 @@ const SignupPage: React.FC = () => {
                     newErrors.push({ field: 'confirmPassword', message: 'As senhas não coincidem.' });
                 }
                 break;
-            case 3: // Dados Pessoais
+            case 4: // Dados Pessoais
                 if (!formData.name || !validateName(formData.name)) {
                     newErrors.push({ field: 'name', message: 'Nome inválido.' });
                 }
@@ -316,36 +247,26 @@ const SignupPage: React.FC = () => {
                     newErrors.push({ field: 'birthDate', message: 'Data de nascimento inválida.' });
                 }
                 break;
-            case 4: // CEP
+            case 5: // CEP
                 if (!formData.cep || !validateCEP(formData.cep)) {
                     newErrors.push({ field: 'cep', message: 'CEP inválido.' });
                 }
                 break;
-            case 5: // Endereço
-                if (!formData.street) {
+            case 6: // Endereço
+                if (!formData.street?.trim()) {
                     newErrors.push({ field: 'street', message: 'Rua inválida.' });
                 }
-                if (!formData.number) {
+                if (!formData.number?.trim()) {
                     newErrors.push({ field: 'number', message: 'Número inválido.' });
                 }
-                if (!formData.neighborhood) {
+                if (!formData.neighborhood?.trim()) {
                     newErrors.push({ field: 'neighborhood', message: 'Bairro inválido.' });
                 }
-                if (!formData.city) {
+                if (!formData.city?.trim()) {
                     newErrors.push({ field: 'city', message: 'Cidade inválida.' });
                 }
-                if (!formData.state) {
+                if (!formData.state?.trim()) {
                     newErrors.push({ field: 'state', message: 'Estado inválido.' });
-                }
-                break;
-            case 6: // Email
-                if (!formData.email || !validateEmail(formData.email)) {
-                    newErrors.push({ field: 'email', message: 'Email inválido.' });
-                }
-                break;
-            case 7: // Verificação de Email
-                if (!formData.emailCode || formData.emailCode.replace(/\D/g, '').length !== 6) {
-                    newErrors.push({ field: 'emailCode', message: 'Código de verificação inválido.' });
                 }
                 break;
             default:
@@ -370,11 +291,11 @@ const SignupPage: React.FC = () => {
             case 1: // Verificação de Telefone
                 await verifyPhoneCode();
                 break;
-            case 6: // Email
-                await sendEmailCode();
+            case 2: // Email - The email existence check is now handled within the EmailStep component.
+                setActiveStep(prev => prev + 1);
                 break;
-            case 7: // Verificação de Email
-                // Não faz nada aqui, pois a verificação é tratada pelo botão "Próximo"
+            case 6: // Address Step
+                await handleSubmit();
                 break;
             default:
                 setActiveStep(prev => prev + 1);
@@ -388,41 +309,50 @@ const SignupPage: React.FC = () => {
 
     const handleCepBlur = async (cep: string) => {
         if (!cep || cep.length !== 8) return;
-
+    
         try {
-            setIsLoading(true);
-            const response = await axios.get(`https://viacep.com.br/ws/${cep}/json/`);
-            
-            if (response.data.erro) {
-                setValidationErrors(prev => [...prev, { field: 'cep', message: 'CEP não encontrado.' }]);
-                return;
+            setCepLoading(true);
+            console.log('Fetching CEP:', cep);
+            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+            const data = await response.json();
+            console.log('ViaCEP response:', data);
+    
+            if (data.erro) {
+              setValidationErrors((prev) => [
+                ...prev,
+                { field: 'cep', message: 'CEP não encontrado.' },
+              ]);
+              return;
             }
-
+    
             const addressData = {
-                street: response.data.logradouro,
-                neighborhood: response.data.bairro,
-                city: response.data.localidade,
-                state: response.data.uf,
-                complement: '' // **Correção 1:** Define sempre como vazio
+              street: data.logradouro,
+              neighborhood: data.bairro,
+              city: data.localidade,
+              state: data.uf,
+              complement: '', // **Correção 1:** Define sempre como vazio
             };
-
+    
+            console.log('Updating form data with:', addressData);
             setFormData({ ...formData, ...addressData });
-            setActiveStep(prev => prev + 1);
-        } catch (error) {
-            setValidationErrors(prev => [...prev, { field: 'cep', message: 'Erro ao buscar CEP.' }]);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+          } catch (error) {
+            console.error('Error fetching CEP:', error);
+            setValidationErrors((prev) => [
+              ...prev,
+              { field: 'cep', message: 'Erro ao buscar CEP.' },
+            ]);
+          } finally {
+            setCepLoading(false);
+          }
+          console.log('formData after cep API call:', formData);
+      };
 
     const handleResendCode = async (type: 'email' | 'phone') => {
         try {
             setError('');
             setSuccess('');
             setIsSubmitting(true);
-            if (type === 'email') {
-                await handleResendEmailCode();
-            } else {
+            if (type === 'phone') {
                 await sendPhoneCode();
             }
             setSuccess('Código reenviado com sucesso.');
@@ -436,131 +366,75 @@ const SignupPage: React.FC = () => {
         }
     };
 
-    const handleResendEmailCode = async () => {
-        if (resendTimer > 0) return; // Impede reenvio se o timer ainda não expirou
-
+    const handleSubmit = async () => {
+        if (!validateStep(6)) { // Valida a etapa de Email antes de prosseguir
+            return;
+        }
+        setIsSubmitting(true);
+        setError('');
+        setSuccess('');
         try {
-            setIsSubmitting(true);
-            setError('');
-            setSuccess('');
+            const user: CreateUserDTO = {
+                email: formData.email,
+                password: formData.password,
+                phone: formData.phone,
+                name: formData.name,
+                cpf: formData.cpf,
+                birth_date: formData.birthDate,
+                address: {
+                    cep: formData.cep,
+                    street: formData.street,
+                    number: formData.number,
+                    complement: formData.complement,
+                    neighborhood: formData.neighborhood,
+                    city: formData.city,
+                    state: formData.state,
+                }
+            };
 
-            const response = await api.post('/auth/verify-email', { email: formData.email });
-
-            if (response.status === 200) {
-                setSuccess('Código de verificação reenviado para seu email.');
-                startResendTimer(); // Inicia o timer
-            }
+            await signup(formData.email, formData.password, user);
+            setSuccess('Usuário cadastrado com sucesso!');
+            setActiveStep(prev => prev + 1);
         } catch (error: any) {
-            let errorMessage = error.response?.data?.error || 'Erro ao reenviar código de verificação.';
-            
-            // Trata o erro de rate limit
-            if (error.response?.data?.code === 'over_email_send_rate_limit') {
-                errorMessage = 'Aguarde alguns minutos antes de tentar reenviar outro código.';
-            }
-            
-            setError(errorMessage);
+            setError(error.message || 'Erro ao cadastrar usuário.');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const getStepContent = (step: number) => {
-        switch (step) {
-            case 0: // Telefone
-                return (
-                    <PhoneStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 1: // Verificação de Telefone
-                return (
-                    <PhoneVerificationStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        phoneTimer={phoneTimer}
-                        onResendCode={() => handleResendCode('phone')}
-                    />
-                );
-            case 2: // Senha
-                return (
-                    <PasswordStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 3: // Dados Pessoais
-                return (
-                    <PersonalInfoStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 4: // CEP
-                return (
-                    <CepStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        handleCepBlur={handleCepBlur}
-                    />
-                );
-            case 5: // Endereço
-                return (
-                    <AddressStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                    />
-                );
-            case 6: // Email
-                return (
-                    <EmailStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        success={success}
-                    />
-                );
-                case 7: // Verificação de Email
-                return (
-                    <EmailVerificationStep
-                        formValues={formData}
-                        handleChange={handleChange}
-                        errors={validationErrors}
-                        onResendCode={() => handleResendCode('email')}
-                        isSubmitting={isSubmitting}
-                        resendTimer={resendTimer}
-                        onSubmit={verifyEmailCode} // Add this line
-                    />
-                );
-            case 8: // Sucesso
-                return <SuccessStep />;
-            default:
-                return 'Passo desconhecido';
-        }
-    };
-
-    const getButtonContent = () => {
-        if (activeStep === 8) {
-            return 'Ir para Login';
-        }
-
-        if (activeStep === 7 && isSubmitting) {
-            return (
-                <>
-                    <CircularProgress size={20} color="inherit" />
-                    <span style={{ marginLeft: 8 }}>Verificando...</span>
-                </>
-            );
-        }
-
-        return 'Próximo';
-    };
+const renderStepContent = (step: number) => {
+    switch (step) {
+        case 0:
+            return <PhoneStep formValues={formData} handleChange={handleChange} errors={validationErrors} setIsSubmitting={setIsSubmitting} />;
+        case 1:
+            return <PhoneVerificationStep formValues={formData} handleChange={handleChange} errors={validationErrors} onResendCode={() => handleResendCode('phone')} phoneTimer={phoneTimer} />;
+        case 2:
+            return <EmailStep 
+                formValues={formData} 
+                handleChange={handleChange} 
+                errors={validationErrors} 
+                setErrors={setValidationErrors}
+                handleNext={() => setActiveStep(prev => prev + 1)} 
+            />;
+        case 3:
+            return <PasswordStep formValues={formData} handleChange={handleChange} errors={validationErrors} />;
+        case 4:
+            return <PersonalInfoStep formValues={formData} handleChange={handleChange} errors={validationErrors} />;
+        case 5:
+            return <CepStep formValues={formData} handleChange={handleChange} errors={validationErrors} onBlur={handleCepBlur} isLoading={cepLoading} />;
+        case 6:
+            return <AddressStep
+                formValues={formData}
+                handleChange={handleChange}
+                errors={validationErrors}
+                isSubmitting={isSubmitting}
+            />;
+        case 7:
+            return <SuccessStep />;
+        default:
+            return null;
+    }
+};
 
     return (
         <Box
@@ -581,110 +455,58 @@ const SignupPage: React.FC = () => {
                             background: 'rgba(30, 30, 30, 0.95)',
                             backdropFilter: 'blur(10px)',
                             border: '1px solid rgba(241, 196, 15, 0.1)',
+                            width: '100%', // Added to control the width
+                            minHeight: '350px',
                         }}
                     >
                         <CardContent sx={{ p: 4 }}>
                             <Box sx={{ mb: 4, textAlign: 'center' }}>
-                                <Typography
-                                    variant="h4"
-                                    sx={{
-                                        color: 'white',
-                                        fontWeight: 700,
-                                        mb: 1
-                                    }}
-                                >
-                                    {steps[activeStep]}
+                                <Typography component="h1" variant="h4" gutterBottom sx={{ color: 'white', fontWeight: 700, mb: 1 }}>
+                                    Cadastro
                                 </Typography>
                             </Box>
-
-                            <StepProgress
-                                activeStep={activeStep}
-                                totalSteps={steps.length}
-                            />
-
-                            <Box sx={{ my: 4 }}>
-                                {getStepContent(activeStep)}
-                            </Box>
-
-                            {activeStep < 8 && (
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        mt: 4,
-                                        pt: 3,
-                                        borderTop: '1px solid rgba(241, 196, 15, 0.1)',
-                                    }}
+                            <StepProgress activeStep={activeStep} totalSteps={steps.length} />
+                            {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+                            {success && <Alert severity="success" sx={{ mt: 2 }}>{success}</Alert>}
+                            <Fade in={!isSubmitting}>
+                                <Box mt={3}>
+                                    {renderStepContent(activeStep)}
+                                </Box>
+                            </Fade>
+                            <Box mt={3} display="flex" justifyContent="space-between">
+                                <Button
+                                    disabled={activeStep === 0 || activeStep === 7}
+                                    onClick={handleBack}
+                                    startIcon={<ArrowBackIcon />}
                                 >
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<ArrowBackIcon />}
-                                        onClick={handleBack}
-                                        disabled={activeStep === 0}
-                                        sx={{
-                                            borderRadius: 2,
-                                            borderColor: 'rgba(241, 196, 15, 0.5)',
-                                            color: 'primary.main',
-                                            '&:hover': {
-                                                borderColor: 'primary.main',
-                                                backgroundColor: 'rgba(241, 196, 15, 0.08)',
-                                            }
-                                        }}
-                                    >
-                                        Voltar
-                                    </Button>
-                                    <Button
-                                        variant="contained"
-                                        endIcon={<ArrowForwardIcon />}
-                                        onClick={activeStep === 7 ? verifyEmailCode : handleNext}
-                                        disabled={isSubmitting || isLoading}
-                                        sx={{
-                                            borderRadius: 2,
-                                            bgcolor: 'primary.main',
-                                            color: 'black',
-                                            fontWeight: 600,
-                                            '&:hover': {
-                                                bgcolor: 'primary.light',
-                                            }
-                                        }}
-                                    >
-                                        {getButtonContent()}
-                                    </Button>
-                                </Box>
-                            )}
-
-                            {activeStep === 8 && (
-                                <Box textAlign="center" mt={4}>
-                                    <CustomButton
-                                        variant="contained"
-                                        onClick={() => navigate('/login')}
-                                        sx={{
-                                            fontWeight: 600,
-                                        }}
-                                    >
-                                        Ir para Login
-                                    </CustomButton>
-                                </Box>
-                            )}
-
-                            {activeStep < 8 && (
-                                <Box textAlign="center" mt={4}>
-                                    <Link
-                                        component={RouterLink}
-                                        to="/login"
-                                        sx={{
-                                            color: 'primary.main',
-                                            textDecoration: 'none',
-                                            fontWeight: 500,
-                                            '&:hover': {
-                                                textDecoration: 'underline',
-                                            },
-                                        }}
-                                    >
-                                        Já tem uma conta? Faça login
-                                    </Link>
-                                </Box>
-                            )}
+                                  Voltar
+                            </Button>
+                            {activeStep === 6 ? (
+                                <CustomButton
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? <CircularProgress size={24} /> : 'Finalizar'}
+                                </CustomButton>
+                            ) : activeStep < steps.length - 1 ? (
+                                <CustomButton
+                                    variant="contained"
+                                    color="primary"
+                                    onClick={handleNext}
+                                    endIcon={<ArrowForwardIcon />}
+                                    disabled={isSubmitting}
+                                >
+                                    {isSubmitting ? <CircularProgress size={24} /> : 'Próximo'}
+                                </CustomButton>
+                            ) : null}
+                         </Box>
+                            <Box mt={2} textAlign="center">
+                                <Link component={RouterLink} to="/login" variant="body2" sx={{ color: '#f1c40f', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                                    Já tem uma conta? Faça login
+                                </Link>
+                            </Box>
                         </CardContent>
                     </Card>
                 </Fade>

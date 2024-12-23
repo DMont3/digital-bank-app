@@ -48,16 +48,15 @@ const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
 }) => {
   return (
     <Box>
-      {/* TODO: Implementar verificação real via SMS */}
-      <Typography variant="body2" color="textSecondary" paragraph>
-        Digite qualquer código de 6 dígitos para prosseguir
+      <Typography variant="body1" gutterBottom>
+        Insira o código de verificação de 6 dígitos enviado para o seu telefone.
       </Typography>
 
       <StyledTextField
         fullWidth
         name="phoneCode"
         label="Código de Verificação"
-        value={formValues.phoneCode || ''}
+        value={formValues?.phoneCode || ''}
         onChange={handleChange}
         error={errors.some(error => error.field === 'phoneCode')}
         helperText={errors.find(error => error.field === 'phoneCode')?.message}
@@ -73,12 +72,12 @@ const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
         {phoneTimer > 0 ? (
           <TimerDisplay timer={phoneTimer} />
         ) : (
-          <Button 
-            variant="text" 
-            onClick={() => onResendCode('phone')}
+          <Button
+            variant="text"
+            onClick={onResendCode}
             sx={{ textTransform: 'none' }}
           >
-            Simular reenvio de código
+            Reenviar código
           </Button>
         )}
       </Box>
