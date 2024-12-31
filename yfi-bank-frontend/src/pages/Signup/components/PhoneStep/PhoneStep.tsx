@@ -3,13 +3,7 @@ import { TextField, Box, Alert } from '@mui/material';
 import { SignupFormData, ValidationError } from '../../../../types/common';
 import { validatePhone } from '../../../../utils/validation';
 import { formatPhone } from '../../../../utils/formatters';
-
-interface PhoneStepProps {
-  formValues: SignupFormData;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  errors: ValidationError[];
-  success?: string;
-}
+import { PhoneStepProps } from '../../../../types/common';
 
 const PhoneStep: React.FC<PhoneStepProps> = ({ formValues, handleChange, errors, success }) => {
   const phoneError = errors.find(error => error.field === 'phone')?.message;

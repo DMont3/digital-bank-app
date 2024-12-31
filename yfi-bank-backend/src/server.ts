@@ -2,7 +2,6 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { authRoutes } from './routes/auth.routes'
-import { userRoutes } from './routes/user.routes'
 import { swaggerPlugin } from './plugins/swagger'
 
 async function bootstrap() {
@@ -20,7 +19,6 @@ async function bootstrap() {
 
   // Registrar rotas
   await fastify.register(authRoutes, { prefix: '/auth' })
-  await fastify.register(userRoutes, { prefix: '/users' })
 
   // Iniciar servidor
   try {

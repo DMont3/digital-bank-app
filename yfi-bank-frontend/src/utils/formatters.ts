@@ -52,3 +52,10 @@ export const formatDate = (dateStr: string): string => {
         return dateStr; // Retorna a string original em caso de erro
     }
 };
+
+export const formatCurrency = (value: number): string => {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+    }).format(value);
+};

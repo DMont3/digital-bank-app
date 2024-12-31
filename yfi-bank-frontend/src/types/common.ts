@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { ButtonProps, BoxProps, ListItemProps } from '@mui/material';
 import { LinkProps as RouterLinkProps } from 'react-router-dom';
+import type { Subscription } from '@supabase/supabase-js';
 
 // Augment Material-UI types to work with React Router
 declare module '@mui/material/Button' {
@@ -190,9 +191,9 @@ export interface SignupFormData {
 }
 
 export interface ValidationError {
-    field: keyof SignupFormData;
+    field: keyof SignupFormData; // Ensures 'field' is a valid key of SignupFormData
     message: string;
-}
+  }
 
 export interface AddressData {
     logradouro: string;
@@ -222,6 +223,29 @@ export interface EmailVerificationStepProps {
     onSubmit: (e: React.FormEvent) => void;
     formValues?: SignupFormData;
     handleChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export interface PhoneStepProps {
+    formValues: SignupFormData;
+    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    errors: ValidationError[];
+    success?: string;
+    onResendCode: () => Promise<void>; 
+  }  
+
+export interface PhoneVerificationStepProps {
+    formValues: SignupFormData;
+    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    errors: ValidationError[];
+    phoneTimer: number;
+    onResendCode: () => Promise<void>; 
+  }
+
+export interface CepStepProps {
+    formValues: SignupFormData;
+    errors: ValidationError[];
+    handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleCepBlur: (cep: string) => Promise<void>;
 }
 
 // About page types
@@ -259,4 +283,18 @@ export interface AuthResponse {
         access_token: string;
         // outros campos da sessão
     };
+}
+
+export interface AuthSubscription {
+    subscription: Subscription;
+  }
+  
+  export interface AuthStateChangeResponse {
+    data: AuthSubscription;
+  }
+
+export interface ApiResponse<T = any> {
+    data?: T;
+    error?: string;
+    message?: string;
 }

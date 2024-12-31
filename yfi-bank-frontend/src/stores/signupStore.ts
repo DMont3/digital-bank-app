@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useAuth } from '../hooks/useAuth';
 import { SignupFormData } from '../types/common';
 
 interface SignupStore {
@@ -8,6 +8,10 @@ interface SignupStore {
   setFormData: (data: Partial<SignupFormData>) => void;
   setActiveStep: (step: number | ((prev: number) => number)) => void;
   resetStore: () => void;
+  isSubmitting: boolean;
+  setIsSubmitting: (isSubmitting: boolean) => void;
+  signup: (data: SignupFormData) => Promise<void>;
+  sendPhoneCode: (phone: string) => Promise<void>;
 }
 
 const initialState: SignupFormData = {
@@ -27,35 +31,44 @@ const initialState: SignupFormData = {
   state: '',
   password: '',
   confirmPassword: '',
-  token: '' // Adiciona o token ao estado inicial
+  token: '',
 };
 
-export const useSignupStore = create<SignupStore>()(
-  persist(
-    (set) => ({
+export const useSignupStore = create<SignupStore>((set) => ({
+  formData: initialState,
+  activeStep: 0,
+  setFormData: (data) =>
+    set((state) => ({
+      formData: { ...state.formData, ...data },
+    })),
+  setActiveStep: (step) =>
+    set((state) => ({
+      activeStep: typeof step === 'function' ? step(state.activeStep) : step,
+    })),
+  resetStore: () =>
+    set({
       formData: initialState,
       activeStep: 0,
-      setFormData: (data) =>
-        set((state) => ({
-          formData: { ...state.formData, ...data }
-        })),
-      setActiveStep: (step) =>
-        set((state) => ({
-          activeStep: typeof step === 'function' ? step(state.activeStep) : step
-        })),
-      resetStore: () =>
-        set({
-          formData: initialState,
-          activeStep: 0
-        })
     }),
-    {
-      name: 'signup-storage',
-      // Só persiste o formData e activeStep
-      partialize: (state) => ({
-        formData: state.formData,
-        activeStep: state.activeStep
-      })
+  isSubmitting: false,
+  setIsSubmitting: (isSubmitting) => set({ isSubmitting }),
+  signup: async (data) => {
+    console.log('signup', data);
+    try {
+      const { email, password, ...userData } = data;
+      const user = await useAuth().signUp(email, password, userData);
+      if (user) {
+        set({ formData: initialState, activeStep: 0, isSubmitting: false });
+      } else {
+        throw new Error('Signup failed');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      set({ isSubmitting: false });
     }
-  )
-);
+  },
+  sendPhoneCode: async (phone) => {
+    console.log('sendPhoneCode', phone);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  },
+}));

@@ -1,47 +1,39 @@
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
+import { ApiResponse } from '../types/common'; // Importe a interface
 
-// Criar instância do axios com configurações base
+// Create an axios instance with base configurations
 export const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+    baseURL: import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000',
+    headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    },
 });
 
-// Interceptor para adicionar o token em todas as requisições
+// Request interceptor to add the token to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  console.log('API Request:', {
-    method: config.method?.toUpperCase(),
-    url: config.url,
-    data: config.data,
-    headers: config.headers
-  });
-  return config;
-}, (error) => {
-  console.error('Request Error:', error);
-  return Promise.reject(error);
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 });
 
-// Interceptor para tratar respostas
+// Response interceptor to handle errors globally
 api.interceptors.response.use(
-  (response) => {
-    console.log('API Response:', {
-      status: response.status,
-      data: response.data
-    });
-    return response;
-  },
-  (error) => {
-    console.error('Response Error:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    return Promise.reject(error);
-  }
+    (response: AxiosResponse<ApiResponse>) => {
+        if (response.data.error) {
+            console.error('API Error:', response.data.error);
+            return Promise.reject(new Error(response.data.error));
+        }
+        return response;
+    },
+    (error) => {
+        if (error.response) {
+            console.error('API Error:', error.response.data);
+        } else {
+            console.error('API Error:', error.message);
+        }
+        return Promise.reject(error);
+    }
 );
