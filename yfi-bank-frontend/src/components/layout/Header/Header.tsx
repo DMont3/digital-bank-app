@@ -18,26 +18,27 @@ import { FaBuilding } from 'react-icons/fa';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import CustomButton from '../../common/CustomButton/CustomButton';
-import { HeaderProps, NavItem } from '../../../types/common';
+import { NavItem } from '../../../types/common';
 import { useAuth } from '../../../hooks/useAuth';
+import { useAuthStore } from '../../../stores/authStore';
 
-const Header: React.FC<HeaderProps> = ({ navItems = [
-    { label: 'Sobre', to: '/sobre' },
-    { label: 'Serviços', to: '/servicos' },
-    { label: 'Contato', to: '/contato' },
-] }) => {
+const Header: React.FC = () => {
+    const navItems: NavItem[] = [
+        { label: 'Sobre', to: '/sobre' },
+        { label: 'Serviços', to: '/servicos' },
+        { label: 'Contato', to: '/contato' },
+    ];
     const [drawerOpen, setDrawerOpen] = React.useState(false);
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
     const navigate = useNavigate();
-    const { user } = useAuth();
-
-    const { logout } = useAuth();
+  const { logout } = useAuth();
+  const { isAuthenticated, user } = useAuthStore();
+  
 
     const handleLogout = async () => {
         try {
             await logout();
-            window.location.href = '/';
         } catch (error) {
             console.error('Error logging out:', error);
         }
@@ -111,17 +112,53 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
         </React.Fragment>
     );
 
-    const renderAuthButtons = () => {
-        if (user) {
+    const capitalizeName = (name: string) => {
+        return name.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
+
+    const renderAuthButtons = (): JSX.Element | null => {
+        // Verifica se a rota atual é login ou signup
+        const isAuthPage = location.pathname === '/login' || 
+                         location.pathname === '/signup';
+
+        // Não mostra os botões de autenticação nas páginas de login/signup
+        if (isAuthPage) {
+            return null;
+        }
+
+        // Interface para usuário logado
+        if (isAuthenticated && user) {
+            const displayName = capitalizeName(user.profile?.name || user.profile?.email.split('@')[0]);
+            
             return (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <Typography sx={{ color: '#f1c40f' }}>
-                        Olá, {user.name || user.email}
+                        Olá, {displayName}
                     </Typography>
                     <CustomButton
+                        component={RouterLink}
+                        to="/dashboard"
+                        variant="contained"
+                        sx={{
+                            backgroundColor: '#f1c40f',
+                            '&:hover': {
+                                backgroundColor: '#d4ac0d',
+                            },
+                        }}
+                    >
+                        Dashboard
+                    </CustomButton>
+                    <CustomButton
                         onClick={handleLogout}
-                        variant="outlined"
-                        color="primary"
+                        variant="contained"
+                        sx={{
+                            backgroundColor: '#ff4444',
+                            '&:hover': {
+                                backgroundColor: '#cc0000',
+                            },
+                        }}
                     >
                         Sair
                     </CustomButton>
@@ -129,13 +166,20 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
             );
         }
 
+        // Interface para usuário não logado
         return (
             <Box sx={{ display: 'flex', gap: 2 }}>
                 <CustomButton
                     component={RouterLink}
                     to="/login"
                     variant="outlined"
-                    color="primary"
+                    sx={{
+                        borderColor: '#f1c40f',
+                        color: '#f1c40f',
+                        '&:hover': {
+                            borderColor: '#d4ac0d',
+                        },
+                    }}
                 >
                     Entrar
                 </CustomButton>
@@ -143,7 +187,12 @@ const Header: React.FC<HeaderProps> = ({ navItems = [
                     component={RouterLink}
                     to="/signup"
                     variant="contained"
-                    color="primary"
+                    sx={{
+                        backgroundColor: '#f1c40f',
+                        '&:hover': {
+                            backgroundColor: '#d4ac0d',
+                        },
+                    }}
                 >
                     Abrir Conta
                 </CustomButton>

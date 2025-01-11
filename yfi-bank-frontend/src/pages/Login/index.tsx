@@ -1,28 +1,29 @@
-import React, { useState } from 'react';
+import { Box, Card, CardContent, Container, Fade, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
 import 'react/jsx-runtime';
-import {
-    Box,
-    Container,
-    Card,
-    CardContent,
-    Typography,
-    Fade,
-} from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { LoginFormData, ValidationError } from '../../types/common';
-import LoginForm from './components/LoginForm/LoginForm';
-import { sanitizeString } from '../../utils/sanitizers';
 import { useAuth } from '../../hooks/useAuth';
+import { LoginFormData, ValidationError } from '../../types/common';
+import { sanitizeString } from '../../utils/sanitizers';
+import LoginForm from './components/LoginForm/LoginForm';
 
 const LoginPage: React.FC = () => {
-    const navigate = useNavigate();
-    const [formValues, setFormValues] = useState<LoginFormData>({
-        email: '',
-        password: ''
-    });
-    const [error, setError] = useState<string>('');
-    const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+  const navigate = useNavigate();
+  const { login, user, isAuthenticating, loading } = useAuth();
+  const [formValues, setFormValues] = useState<LoginFormData>({
+    email: '',
+    password: '',
+  });
+  const [error, setError] = useState<string>('');
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>(
+    []
+  );
+
+    useEffect(() => {
+        if (user !== null && user !== undefined && !loading) {
+          navigate('/dashboard', { replace: true });
+        }
+      }, [user, navigate, loading]);
 
     const handleForgotPassword = () => {
         navigate('/forgot-password');
@@ -32,62 +33,62 @@ const LoginPage: React.FC = () => {
         const { name, value } = e.target;
         setFormValues((prev: LoginFormData) => ({
             ...prev,
-            [name]: sanitizeString(value)
+            [name]: sanitizeString(value),
         }));
     };
 
-    const validateEmail = (email: string): boolean => {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email);
-    };
+  const validateEmail = (email: string): boolean => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  };
 
-    const handleSubmit = async (e: React.FormEvent): Promise<void> => {
-        const errors: ValidationError[] = [];
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+    e.preventDefault();
+    const errors: ValidationError[] = [];
 
-        const sanitizedEmail = sanitizeString(formValues.email);
-        const sanitizedPassword = formValues.password; // Não sanitizamos senha
+    const sanitizedEmail = sanitizeString(formValues.email);
+    const sanitizedPassword = formValues.password; // Não sanitizamos senha
 
-        if (!sanitizedEmail) {
-            errors.push({
-                field: 'email',
-                message: 'Por favor, informe seu email.'
-            });
-        } else if (!validateEmail(sanitizedEmail)) {
-            errors.push({
-                field: 'email',
-                message: 'Por favor, informe um email válido.'
-            });
-        }
+    if (!sanitizedEmail) {
+      errors.push({
+        field: 'email',
+        message: 'Por favor, informe seu email.',
+      });
+    } else if (!validateEmail(sanitizedEmail)) {
+      errors.push({
+        field: 'email',
+        message: 'Por favor, informe um email válido.',
+      });
+    }
 
-        if (!sanitizedPassword) {
-            errors.push({
-                field: 'password',
-                message: 'Por favor, informe sua senha.'
-            });
-        }
+    if (!sanitizedPassword) {
+      errors.push({
+        field: 'password',
+        message: 'Por favor, informe sua senha.',
+      });
+    }
 
-        if (errors.length > 0) {
-            setValidationErrors(errors);
-            return;
-        }
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
 
-        setIsLoading(true);
-        setError('');
-        setValidationErrors([]);
+    setError('');
+    setValidationErrors([]);
 
-        try {
-            const { login } = useAuth();
-            await login(sanitizedEmail, sanitizedPassword);
-            navigate('/dashboard', { replace: true });
-            return;
-        } catch (error: any) {
-            console.error('Erro no login:', error);
-            const errorMessage = error.message || 'Erro ao fazer login. Por favor, tente novamente.';
-            setError(errorMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    console.log('handleSubmit called');
+
+    try {
+      await login(sanitizedEmail, sanitizedPassword);
+      navigate('/dashboard', { replace: true });
+    } catch (error: any) {
+      console.error('Erro no login:', error);
+      console.log('Caught error:', error);
+      const errorMessage =
+        error.message || 'Erro ao fazer login. Por favor, tente novamente.';
+      setError(errorMessage);
+    }
+  };
 
     return (
         <Box
@@ -128,7 +129,7 @@ const LoginPage: React.FC = () => {
                                 formValues={formValues}
                                 errors={validationErrors}
                                 error={error}
-                                isLoading={isLoading}
+                                isLoading={isAuthenticating}
                                 onSubmit={handleSubmit}
                                 onChange={handleChange}
                                 onForgotPassword={handleForgotPassword}

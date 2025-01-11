@@ -2,6 +2,7 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import { phoneVerificationRoutes } from './routes/phoneVerification.routes';
+import { signupRoutes } from './routes/signup.routes';
 
 async function bootstrap() {
   const fastify = Fastify({
@@ -16,6 +17,7 @@ async function bootstrap() {
 
   // Registrar rotas
   await fastify.register(phoneVerificationRoutes, { prefix: '/api/v1' });
+  await fastify.register(signupRoutes, { prefix: '/api/v1' });
 
   // Iniciar servidor
   try {

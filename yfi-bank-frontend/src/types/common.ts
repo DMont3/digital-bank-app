@@ -93,9 +93,10 @@ export interface NavItem {
     to: string;
 }
 
+
 // Layout component types
 export interface HeaderProps {
-    navItems?: NavItem[];
+  navItems?: NavItem[];
 }
 
 export interface FooterProps {

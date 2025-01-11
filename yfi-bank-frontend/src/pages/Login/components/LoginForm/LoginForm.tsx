@@ -18,7 +18,7 @@ const LoginForm: React.FC<LoginFormProps> = ({
     formValues,
     errors,
     error,
-    isLoading = false,
+    isLoading,
     onSubmit,
     onChange,
     onForgotPassword
@@ -27,9 +27,9 @@ const LoginForm: React.FC<LoginFormProps> = ({
     const emailError = errors.find(error => error.field === 'email')?.message;
     const passwordError = errors.find(error => error.field === 'password')?.message;
 
+    // Call the onSubmit prop, which now handles loading state in useAuth
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Form submit prevented');
         await onSubmit(e);
     };
 

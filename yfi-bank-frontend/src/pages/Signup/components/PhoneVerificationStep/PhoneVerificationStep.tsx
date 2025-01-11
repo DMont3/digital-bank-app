@@ -74,7 +74,7 @@ const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
         ) : (
           <Button
             variant="text"
-            onClick={onResendCode}
+            onClick={() => onResendCode('phone')}
             sx={{ textTransform: 'none' }}
           >
             Reenviar código

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Box, Typography, Button } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useNavigate } from 'react-router-dom';
+import CustomButton from '../../../../components/common/CustomButton/CustomButton';
 
 const SuccessStep: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,9 @@ const SuccessStep: React.FC = () => {
       >
         Você já pode fazer login na sua conta YFI Bank.
       </Typography>
+      <CustomButton onClick={() => navigate('/dashboard')}>
+        Acessar o dashboard
+      </CustomButton>
     </Box>
   );
 };

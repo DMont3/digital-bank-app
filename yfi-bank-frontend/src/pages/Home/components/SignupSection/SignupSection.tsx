@@ -5,8 +5,10 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import { Link as RouterLink } from 'react-router-dom'; 
 import CustomButton from '../../../../components/common/CustomButton/CustomButton';
 import { SignupStep } from '../../../../types/common';
+import { useAuth } from '../../../../hooks/useAuth';
 
 const SignupSection: React.FC = () => {
+    const { user, loading } = useAuth();
     const steps: SignupStep[] = [
         {
             number: '01',
@@ -90,17 +92,25 @@ const SignupSection: React.FC = () => {
                     ))}
                 </Grid>
                 <Box display="flex" justifyContent="center" sx={{ marginTop: 4 }}>
-                    <CustomButton 
-                        variant="contained" 
-                        component={RouterLink} 
-                        to="/signup"
-                        sx={{
-                            fontSize: '1rem',
-                            padding: '14px 28px',
-                        }}
-                    >
-                        Abra sua conta
-                    </CustomButton>
+                    {!user && (
+                        <Box sx={{ 
+                            opacity: loading ? 0 : 1, 
+                            transition: 'opacity 0.3s',
+                            pointerEvents: loading ? 'none' : 'auto'
+                        }}>
+                            <CustomButton 
+                                variant="contained" 
+                                component={RouterLink} 
+                                to="/signup"
+                                sx={{
+                                    fontSize: '1rem',
+                                    padding: '14px 28px',
+                                }}
+                            >
+                                Abra sua conta
+                            </CustomButton>
+                        </Box>
+                    )}
                 </Box>
             </Container>
         </Box>
