@@ -32,6 +32,10 @@ export interface User {
     phoneVerified?: boolean;
     createdAt?: string;
     updatedAt?: string;
+    cryptoBalances?: {
+        [symbol: string]: number;
+    };
+    token?: string;
 }
 
 export interface CreateUserDTO {
@@ -91,6 +95,13 @@ export interface WhyChooseSectionProps {
 export interface NavItem {
     label: string;
     to: string;
+    icon?: React.ReactNode;
+    subItems?: SubNavItem[];
+}
+
+export interface SubNavItem {
+    label: string;
+    to: string;
 }
 
 
@@ -140,12 +151,28 @@ export interface CoinInfo {
     icon: string;
 }
 
+export type TransactionType = 'buy' | 'sell';
+
 export interface CryptoData {
     name: string;
     symbol: string;
     icon: string;
     price: string;
     variation: string;
+}
+
+export interface CryptoPrices {
+    [key: string]: number;
+}
+
+export interface CryptoTransaction {
+    id: string;
+    amount: number;
+    crypto: string;
+    type: TransactionType;
+    price: number;
+    date: string;
+    status?: 'pending' | 'completed' | 'failed';
 }
 
 export interface SliderSettings {

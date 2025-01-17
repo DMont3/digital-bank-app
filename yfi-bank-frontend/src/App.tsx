@@ -17,6 +17,16 @@ import SobrePage from './pages/Sobre';
 import ServicosPage from './pages/Servicos';
 import ContatoPage from './pages/Contato';
 import DashboardPage from './pages/Dashboard';
+import DashboardHome from './pages/Dashboard/components/DashboardHome';
+import BalancePage from './pages/Dashboard/components/BalancePage';
+import CryptoPage from './pages/Dashboard/components/CryptoPage';
+import PaymentsPage from './pages/Dashboard/components/PaymentsPage';
+import SettingsPage from './pages/Dashboard/components/SettingsPage';
+import TransactionHistory from './pages/Dashboard/components/TransactionHistory';
+import CryptoTransactionPage from './pages/Dashboard/components/CryptoTransactionPage';
+import PixPage from './pages/Dashboard/components/PixPage';
+import PixSendForm from './pages/Dashboard/components/PixSendForm';
+import PixDepositForm from './pages/Dashboard/components/PixDepositForm';
 import { PrivateRoute } from './components/common/PrivateRoute/PrivateRoute';
 import { PublicRoute } from './components/common/PublicRoute/PublicRoute';
 import { useAuth } from './hooks/useAuth';
@@ -70,7 +80,19 @@ const AppContent: React.FC = () => {
                 <DashboardPage />
               </PrivateRoute>
             }
-          />
+          >
+            <Route index element={<DashboardHome />} />
+            <Route path="balance" element={<BalancePage />} />
+            <Route path="crypto" element={<CryptoPage />} />
+            <Route path="payments" element={<PaymentsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="transaction-history" element={<TransactionHistory />} />
+            <Route path="crypto-transaction" element={<CryptoTransactionPage />} />
+            <Route path="pix" element={<PixPage />}>
+              <Route path="send" element={<PixSendForm />} />
+              <Route path="deposit" element={<PixDepositForm />} />
+            </Route>
+          </Route>
         </Routes>
       </main>
       {shouldShowFooter && <Footer />}

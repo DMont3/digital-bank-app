@@ -46,12 +46,51 @@ api.interceptors.response.use(
   }
 );
 
+// Serviços de autenticação
 export const sendPhoneCode = async (phone: string) => {
   return api.post('/api/v1/verify/start', { phone });
 };
 
 export const verifyPhoneCode = async (phone: string, code: string) => {
   return api.post('/api/v1/verify/check', { phone, code });
+};
+
+// Serviços de pagamentos
+export const createPixDeposit = async (amount: number) => {
+  // Mock da API de depósito PIX
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        data: {
+          id: Math.random().toString(36).substring(7),
+          amount,
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          qr_code: 'mock-qr-code',
+          pix_key: 'mock-pix-key'
+        }
+      });
+    }, 1000); // Simula 1 segundo de delay
+  });
+};
+
+export const getDepositHistory = async () => {
+  return api.get('/api/v1/payments/deposits');
+};
+
+// WebSocket para notificações em tempo real
+export const createPaymentSocket = () => {
+  const socket = new WebSocket(`${import.meta.env.VITE_WS_BASE_URL}/payments`);
+  
+  socket.onopen = () => {
+    console.log('WebSocket connection established');
+  };
+
+  socket.onclose = () => {
+    console.log('WebSocket connection closed');
+  };
+
+  return socket;
 };
 
 export default api;
